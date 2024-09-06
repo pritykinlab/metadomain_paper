@@ -425,8 +425,11 @@ def plot_foxp3_peaks_near_degs(degs, col_to_name, foxp3_count_set, full_foxp3_co
     #     ax.set_ylabel(ylabel)
     #     ax.set_xlim([-.2, 10])
 
+
+print(1)
 def plot_foxp3_peaks_near_degs_as_bar(degs, col_to_name, name, foxp3_count_set, full_foxp3_counts, ax=None, color=None,
-                                    xlabel = "ATAC peaks near DEGs", ylabel='Foxp3 Binding', linewidth=2, plot_baseline=False):
+                                    xlabel = "ATAC peaks near DEGs", ylabel='Foxp3 Binding', linewidth=2, plot_baseline=False,
+                                    test='rankSums'):
     ax = plt.gca() if ax is None else ax
     # fig, axs = init_subplots(6, 2, space=.4, fgsz=(6, 4))
     degs = [x for x in degs if x in foxp3_count_set]
@@ -434,10 +437,15 @@ def plot_foxp3_peaks_near_degs_as_bar(degs, col_to_name, name, foxp3_count_set, 
         return 0
     baseline = full_foxp3_counts.loc[[x for x in foxp3_count_set]]
     wei_up_foxp3_counts = full_foxp3_counts.loc[degs]
-    p_wei = scipy.stats.ranksums(wei_up_foxp3_counts, baseline)[1]
+    if test == 'rankSums':
+        p_wei = nonan_test(wei_up_foxp3_counts, baseline)[1]
+    elif test == 'fisherExact':
+        fisher_mat = [[(wei_up_foxp3_counts>0).sum(), (wei_up_foxp3_counts==0).sum()],
+                      [(baseline>0).sum(), (baseline==0).sum()]
+                      ]
+        p_wei = scipy.stats.fisher_exact(fisher_mat)[1]
     
     # plt.sca(axs[c])
-    # if p_wei < .05:
     if plot_baseline==True:
         sem = baseline.sem()  # Standard deviation
         plt.bar(-1, baseline.mean(), color='lightgray', linewidth=linewidth, zorder=3)
@@ -449,7 +457,7 @@ def plot_foxp3_peaks_near_degs_as_bar(degs, col_to_name, name, foxp3_count_set, 
         plt.errorbar(name, wei_up_foxp3_counts.mean(), yerr=sem, fmt='o', color='black', capsize=5, zorder=4, markersize=0)
 
     plt.legend(loc = 'lower left', bbox_to_anchor=(1.02, .1), frameon=False)
-    return wei_up_foxp3_counts
+    return wei_up_foxp3_counts, p_wei
     # plt.sca(axs[c+3])
     # sns.ecdfplot(jor_down_foxp3_counts, color='#9999FF', label=f'KO Down (n={len(jor_down_foxp3_counts)})')
     # sns.ecdfplot(wei_down_foxp3_counts, color='#66CCFF', label=f'Tir1 Down (n={len(wei_down_foxp3_counts)})')

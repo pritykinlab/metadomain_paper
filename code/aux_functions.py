@@ -185,7 +185,8 @@ def make_order_and_cluster_custom(matrix, method='average', metric='cosine', n_c
         return [0]*len(order), order, None
     
     
-def make_order_and_cluster_optimal(matrix, n_clusters, method='ward', metric='euclidean'):
+def make_order_and_cluster_optimal(matrix, n_clusters, method='ward', metric='euclidean',
+                                   return_linkage=False):
     if len(matrix) > 1:
         linkage = scipy.cluster.hierarchy.linkage(matrix, method=method, metric=metric)
         dendro = scipy.cluster.hierarchy.dendrogram(linkage, no_plot=True,
@@ -196,7 +197,10 @@ def make_order_and_cluster_optimal(matrix, n_clusters, method='ward', metric='eu
     else:
         order = np.arange(len(matrix))
     # order = dendro['leaves']
-    return order, p
+    if return_linkage:
+        return order, p, linkage
+    else:
+        return order, p
 
 
 def overlap_two_separate_dfs(df1, df2):
@@ -411,6 +415,15 @@ def chromify_for_cool(cool, grange):
     else:
         return remove_chr(grange)
 
+def get_differential_sites(df, pco=.05, lfc=0):
+    sites_up = df.index[(df['padj'] < pco) & (df['log2FoldChange'] > lfc)]
+    sites_down = df.index[(df['padj'] < pco) & (df['log2FoldChange'] < -lfc)]
+    return sites_up, sites_down
+
+def get_differential_sites_separate_df(lfc_df, pval_df, column, pco=.05, lfc=0):
+    sites_up = lfc_df.index[(pval_df[column] < pco) & (lfc_df[column] > lfc)]
+    sites_down = lfc_df.index[(pval_df[column] < pco) & (lfc_df[column] < -lfc)]
+    return sites_up, sites_down
 
 def get_pileup_from_bigwig(bigwig, places, delta=5000, bins=100, genome='mm10'):
     places = places.slop(b=delta, genome=genome)
@@ -453,18 +466,28 @@ def get_label_from_vs(vs):
 def get_label_from_multiindex(col):
     return col[0].split("_")[0] + " " + col[1].split("_")[-1]
 
-def fetch_mean_matched_values(basemean_series, series_to_match, with_duplicates=False):
+def fetch_mean_matched_values(needle, haystack, with_duplicates=False, n=1):
     inds = []
-    for _, i in enumerate(basemean_series):
-        t = (series_to_match - i).abs()
-        ord_inds = np.argmin(t)
-        index_to_add = t.index[ord_inds]
-        if with_duplicates:
-            inds.append(index_to_add)
-        else:
-            if index_to_add not in inds:
+    for _, i in enumerate(needle):
+        t = (haystack - i).abs()
+        if n == 1:
+            ord_inds = np.argmin(t)
+            index_to_add = t.index[ord_inds]
+            if with_duplicates:
                 inds.append(index_to_add)
-    matched_means = series_to_match.loc[list(inds)]
+            else:
+                if index_to_add not in inds:
+                    inds.append(index_to_add)
+        else:
+            ord_inds = np.argsort(t)[:n]
+            index_to_add = t.index[ord_inds]
+            if with_duplicates:
+                inds.extend(index_to_add)
+            else:
+                for i in index_to_add:
+                    if i not in inds:
+                        inds.append(i)
+    matched_means = haystack.loc[list(inds)]
     return matched_means
 
 def fetch_mean_matched_values_biased_up(basemean_series, series_to_match, with_duplicates=False):

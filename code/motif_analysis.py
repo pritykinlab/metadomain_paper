@@ -8,9 +8,9 @@ import pybedtools as pbt
 
 def nochr_make_ctcf_peaks(anchors, name, shift=0, outdir='./meme/for_motifs/', fapath='./annotations/mm10.fa', genome='mm10'):
     fasta = pbt.BedTool(fapath)
-    coords = anchors.shift(genome=genome, s=shift)
-    len(coords)
-    seq = open(coords.sequence(fi=fasta).seqfn).read()
+    if shift != 0:
+        anchors = anchors.shift(genome=genome, s=shift)
+    seq = open(anchors.sequence(fi=fasta).seqfn).read()
     with open(f'{outdir}/{name}', 'w+') as f:
         f.write(seq.upper())
     return seq

@@ -293,7 +293,7 @@ def plot_abc4(abc_dfs_real, abc_dfs_control, inter_abc_dfs_real, inter_abc_dfs_c
         idx = (tss_5kb_ind_df.loc[genesoi]['start'].astype(int).values/5000).astype(int)
         yvals = peak_gene_dataframe.set_index('name').loc[genesoi]['itemRgb']
         yvals = (1+yvals[~yvals.index.duplicated(keep='first')])
-        yvals = yvals/geneLengths.loc[yvals.index, 'Length']
+        yvals = yvals/geneLengths.loc[yvals.index]
         yvals = np.log2(yvals)
 
         rs = [] 
@@ -473,3 +473,45 @@ def make_tss_ind_df(all_ind_to_region_5kb, my_tss_df):
             seen.add(name)
     tss_5kb_ind_df = pd.DataFrame(rows, columns = ['chr', 'start', 'end', 'gene_name']).set_index('gene_name')    
     return tss_5kb_ind_df
+
+
+from aux_functions import get_col
+def make_ternary_df(intra_activity_dfs, inter_activity_dfs, all_ind_to_region, tss_df, TSS_filter=True, genesets=[]):
+    vs_local = []
+    vs_far = []
+    vs_inter = []
+    for chrom in inter_activity_dfs:
+        local_intra = pd.concat(intra_activity_dfs[chrom], axis=1)['2000000.0'] - pd.concat(intra_activity_dfs[chrom], axis=1)['10000']
+        full_intra = pd.concat(intra_activity_dfs[chrom], axis=1)['full_intra'] - pd.concat(intra_activity_dfs[chrom], axis=1)['10000']
+        full_inter = pd.concat(inter_activity_dfs[chrom], axis=1).sum(axis=1)
+        
+        vs_local.extend(list((local_intra)/(full_intra + full_inter)))
+        vs_far.extend(list((full_intra-local_intra)/(full_intra + full_inter)))
+        vs_inter.extend(list(full_inter/(full_intra+full_inter)))
+
+    
+    vs_local_sum = []
+    vs_far_sum = []
+    vs_inter_sum = []
+    for chrom in inter_activity_dfs:
+        local_intra = pd.concat(intra_activity_dfs[chrom], axis=1)['2000000.0'] - pd.concat(intra_activity_dfs[chrom], axis=1)['10000']
+        full_intra = pd.concat(intra_activity_dfs[chrom], axis=1)['full_intra'] - pd.concat(intra_activity_dfs[chrom], axis=1)['10000']
+        full_inter = pd.concat(inter_activity_dfs[chrom], axis=1).sum(axis=1)
+        
+        vs_local_sum.extend(list(local_intra))
+        vs_far_sum.extend(list(full_intra-local_intra))
+        vs_inter_sum.extend(list(full_inter))
+    ternary_df = pd.DataFrame([vs_local, vs_far, vs_inter, vs_local_sum, vs_far_sum, vs_inter_sum], 
+                              index = ['Local', 'Far', 'Inter', 'Local_Sum', 'Far_Sum', 'Inter_Sum']).T
+
+    
+    ternary_df['chrom'] = [all_ind_to_region[x][0] for x in ternary_df.index]
+
+    ternary_dfs = []
+    for geneset in genesets:
+        subdf = tss_df.loc[[x for x in geneset if x in tss_df.index]]
+        tss_cols = get_col(pbt.BedTool(all_ind_to_region).intersect(pbt.BedTool.from_dataframe(subdf), c=True), -1).astype(int)
+
+        sub_ternary_df = ternary_df.iloc[tss_cols>0].dropna()
+        ternary_dfs.append(sub_ternary_df)
+    return ternary_dfs

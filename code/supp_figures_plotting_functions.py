@@ -1058,33 +1058,28 @@ def make_replicate_plot(replicate_cooldict, all_ind_to_region, ind_to_gene):
 
 
 
-
-import numpy as np
-import matplotlib.pyplot as plt
-from megaloop_functions import *
-
-def generate_megaloop_venn_diagrams(deseq_pval_mat, all_intra_treg_megaloops, all_intra_tcon_megaloops, pcos = [.05, 1]):
+def generate_metadomain_venn_diagrams(deseq_pval_mat, all_intra_treg_metadomains, all_intra_tcon_metadomains, pcos = [.05, 1]):
     for c, pco in enumerate(pcos):
         if c == 0:
             idx = (deseq_pval_mat < pco)
         else:
             idx = (deseq_pval_mat < pco) & (deseq_pval_mat > pcos[c-1])
         
-        treg_mega_df = get_megaloops_by_distance(all_intra_treg_megaloops * idx)
-        tcon_mega_df = get_megaloops_by_distance(all_intra_tcon_megaloops * idx)
+        treg_mega_df = get_metadomains_by_distance(all_intra_treg_metadomains * idx)
+        tcon_mega_df = get_metadomains_by_distance(all_intra_tcon_metadomains * idx)
         
         print(treg_mega_df.shape)
 
         
-        treg_megaloop_set = ind_mega_df_to_set(treg_mega_df)
-        tcon_megaloop_set = ind_mega_df_to_set(tcon_mega_df)
+        treg_metadomain_set = ind_mega_df_to_set(treg_mega_df)
+        tcon_metadomain_set = ind_mega_df_to_set(tcon_mega_df)
         
         fig, axs = init_subplots_exact(1, 1, fgsz=(30*mm, 30*mm), dpi=200, sharex=True, space=1.5)
-        my_venn2([tcon_megaloop_set, treg_megaloop_set], ['Tcon', 'Treg'], ax=axs)
-        jacc_coeff = np.round(len(tcon_megaloop_set.intersection(treg_megaloop_set)) / len(tcon_megaloop_set.union(treg_megaloop_set)),
+        my_venn2([tcon_metadomain_set, treg_metadomain_set], ['Tcon', 'Treg'], ax=axs)
+        jacc_coeff = np.round(len(tcon_metadomain_set.intersection(treg_metadomain_set)) / len(tcon_metadomain_set.union(treg_metadomain_set)),
                               2)
         axs.set_title(f"Jaccard: {jacc_coeff}")
-        fig.savefig(f'./plots/paper/s11/megaloop_venn_diagram_pco={pco}.pdf', bbox_inches='tight', dpi=300)
+        fig.savefig(f'./plots/paper/s11/metadomain_venn_diagram_pco={pco}.pdf', bbox_inches='tight', dpi=300)
         plt.show()
 
 
@@ -1094,10 +1089,10 @@ import matplotlib.pyplot as plt
 from volcano_plot import volcano_plot
 from aux_functions import get_name
 
-def generate_megaloop_volcano_plot(all_intra_megaloops, deseq_lfc_mat, deseq_pval_mat, ind_to_gene, ignore_set, output_path):
-    n = len(all_intra_megaloops)
+def generate_metadomain_volcano_plot(all_intra_metadomains, deseq_lfc_mat, deseq_pval_mat, ind_to_gene, ignore_set, output_path):
+    n = len(all_intra_metadomains)
     X, Y = np.indices((n, n))
-    indsoi = np.triu(all_intra_megaloops, k=8)
+    indsoi = np.triu(all_intra_metadomains, k=8)
     inds_x, inds_y = X[indsoi], Y[indsoi]
 
     data = pd.DataFrame()
@@ -1123,20 +1118,20 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 import matplotlib.gridspec as gridspec
 
-def generate_megaloop_count_plot(deseq_effect_mat, all_intra_megaloops, cutoff=4):
-    n_de_megaloops = np.sum((np.abs(deseq_effect_mat) > 4) & (all_intra_megaloops > 0), axis=1)
-    n_treg_megaloops = np.sum((deseq_effect_mat > 4) & (all_intra_megaloops > 0), axis=1)
-    n_tcon_megaloops = np.sum((deseq_effect_mat < -4) & (all_intra_megaloops > 0), axis=1)
-    n_megaloops = np.sum((all_intra_megaloops > 0), axis=1)
+def generate_metadomain_count_plot(deseq_effect_mat, all_intra_metadomains, cutoff=4):
+    n_de_metadomains = np.sum((np.abs(deseq_effect_mat) > 4) & (all_intra_metadomains > 0), axis=1)
+    n_treg_metadomains = np.sum((deseq_effect_mat > 4) & (all_intra_metadomains > 0), axis=1)
+    n_tcon_metadomains = np.sum((deseq_effect_mat < -4) & (all_intra_metadomains > 0), axis=1)
+    n_metadomains = np.sum((all_intra_metadomains > 0), axis=1)
 
-    megaloop_count_df = pd.DataFrame([n_de_megaloops, n_megaloops, n_treg_megaloops, n_tcon_megaloops]).T
-    megaloop_count_df.columns = ['# DE megaloops', '# megaloops', '# Treg megaloops', '# Tcon megaloops']
+    metadomain_count_df = pd.DataFrame([n_de_metadomains, n_metadomains, n_treg_metadomains, n_tcon_metadomains]).T
+    metadomain_count_df.columns = ['# DE metadomains', '# metadomains', '# Treg metadomains', '# Tcon metadomains']
 
-    col = '# megaloops'
+    col = '# metadomains'
     cutoff = 1000
-    data = megaloop_count_df
+    data = metadomain_count_df
     data = data[col].value_counts().reset_index()
-    tmp = pd.DataFrame(np.asarray(megaloop_count_df['# megaloops']), columns=[col]).value_counts().reset_index()
+    tmp = pd.DataFrame(np.asarray(metadomain_count_df['# metadomains']), columns=[col]).value_counts().reset_index()
     data = tmp
     data = data.set_index(col).reindex(np.arange(max(data[col]))).reset_index()
     data[col] = data[col].astype(int)
@@ -1186,8 +1181,8 @@ def generate_megaloop_count_plot(deseq_effect_mat, all_intra_megaloops, cutoff=4
 
 
 
-def generate_megaloop_compartment_plot(all_intra_megaloops, my_treg_comp, ACOMPARTMENT_CUTOFF_LOOSE, ):
-    tmp1, tmp2 = np.where(all_intra_megaloops)
+def generate_metadomain_compartment_plot(all_intra_metadomains, my_treg_comp, ACOMPARTMENT_CUTOFF_LOOSE, ):
+    tmp1, tmp2 = np.where(all_intra_metadomains)
     # fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 300)
     x = my_treg_comp[tmp1]
     y = my_treg_comp[tmp2]
@@ -1253,10 +1248,9 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from megaloop_functions import *
 
-def generate_chromosome_heatmap(chrom, all_intra_megaloops, gene_to_ind, SE_count, bw_val_df_250kb, my_treg_comp, chrom_to_start, chrom_to_end, cutoff=5,
-                                dpi=150):
+def generate_chromosome_heatmap(chrom, all_intra_metadomains, gene_to_ind, SE_count, bw_val_df_250kb, my_treg_comp, chrom_to_start, chrom_to_end, cutoff=5,
+                                dpi=150, n_clusters = 10):
     color1 = (190/255, 104/255, 197/255)
     color2 = (251/255, 251/255, 251/255)
     custom_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("custom_cmap", [color2, color1])
@@ -1273,13 +1267,14 @@ def generate_chromosome_heatmap(chrom, all_intra_megaloops, gene_to_ind, SE_coun
     intra_clustering = pd.DataFrame()
     s, e = chrom_to_start[chrom], chrom_to_end[chrom]
     size = e - s
-    submat = pd.DataFrame(all_intra_megaloops[s:e, s:e] > 0)
+    submat = pd.DataFrame(all_intra_metadomains[s:e, s:e] > 0)
     indsoi = submat.sum(axis=0) >= cutoff
     indsoi = np.where(indsoi)[0]
     submat = submat.loc[indsoi, indsoi]
 
     row_colors = [sns.color_palette('bwr', as_cmap=True)(x / size) for x in indsoi]
-    o, clusters, _ = make_order_and_cluster_custom(submat, method='ward', metric='euclidean', n_clusters=10)
+    o, clusters = make_order_and_cluster_optimal(submat, method='ward', metric='euclidean', n_clusters=n_clusters)
+    clusters = rename_clusts_by_order(clusters, o)
 
     fig, axs = init_subplots_exact(2, 1, fgsz=(70*mm, 70*mm), dpi=dpi, space=1.4)
     sns.heatmap(submat.iloc[o, o], cmap=custom_cmap, vmin=0, vmax=1, cbar=False, ax=axs[1], rasterized=True)
@@ -1356,8 +1351,8 @@ def generate_chromosome_heatmap(chrom, all_intra_megaloops, gene_to_ind, SE_coun
     ax3.set_yticks([])
 
 
-    axs[0].set_title(f'Bins w/ ≥ {cutoff} megaloops (Chr{chrom})')
-    axs[1].set_title(f'Bins w/ ≥ {cutoff} megaloops, reordered (Chr{chrom})')
+    axs[0].set_title(f'Bins w/ ≥ {cutoff} metadomains (Chr{chrom})')
+    axs[1].set_title(f'Bins w/ ≥ {cutoff} metadomains, reordered (Chr{chrom})')
 
     intra_clustering['ind'] = indsoi + s
     intra_clustering['chr'] = chrom
@@ -1366,7 +1361,7 @@ def generate_chromosome_heatmap(chrom, all_intra_megaloops, gene_to_ind, SE_coun
 
     fig.savefig(f'./plots/paper/s12/heatmap_chr={chrom}_cutoff={cutoff}.pdf', bbox_inches='tight')
     fig.savefig(f'./plots/paper/s12/heatmap_chr={chrom}_cutoff={cutoff}.svg')
-
+    return all_intra_clustering
 
 
 
@@ -1440,9 +1435,9 @@ def make_wrapped_plot(inter_and_intra_connections, cool, all_ind_to_region, chro
 
 
 from adjustText import adjust_text
-def treg_tcon_inter_megaloops(all_inter_treg_megaloops, all_inter_tcon_megaloops, ind_to_gene,):
-    treg_inter = all_inter_treg_megaloops.sum(axis=1)
-    tcon_inter = all_inter_tcon_megaloops.sum(axis=1)
+def treg_tcon_inter_metadomains(all_inter_treg_metadomains, all_inter_tcon_metadomains, ind_to_gene,):
+    treg_inter = all_inter_treg_metadomains.sum(axis=1)
+    tcon_inter = all_inter_tcon_metadomains.sum(axis=1)
     x, y = treg_inter, tcon_inter
 
     fig, ax = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 150)
@@ -1484,8 +1479,8 @@ def interval_to_str(interval):
         return f"{int(int1)}-{int(int2)}"
 
 from adjustText import adjust_text
-def inter_metadomains_vs_SE(all_inter_treg_megaloops, SE_count,):
-    treg_inter = all_inter_treg_megaloops.sum(axis=1)
+def inter_metadomains_vs_SE(all_inter_treg_metadomains, SE_count,):
+    treg_inter = all_inter_treg_metadomains.sum(axis=1)
     n_ses = SE_count
     data = pd.DataFrame()
     data['# SEs'] = n_ses
@@ -1526,9 +1521,9 @@ def inter_metadomains_vs_SE(all_inter_treg_megaloops, SE_count,):
 
 
 from adjustText import adjust_text
-def inter_intra_megaloops(all_inter_treg_megaloops, all_intra_treg_megaloops, ind_to_gene, celltype):
-    treg_inter = all_inter_treg_megaloops.sum(axis=1)
-    treg_intra = all_intra_treg_megaloops.sum(axis=1)
+def inter_intra_metadomains(all_inter_treg_metadomains, all_intra_treg_metadomains, ind_to_gene, celltype):
+    treg_inter = all_inter_treg_metadomains.sum(axis=1)
+    treg_intra = all_intra_treg_metadomains.sum(axis=1)
     x, y = treg_inter, treg_intra
 
     fig, ax = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 150)
@@ -1565,10 +1560,10 @@ def inter_intra_megaloops(all_inter_treg_megaloops, all_intra_treg_megaloops, in
     return fig
 
 
-def inter_megaloop_barplot(all_inter_treg_megaloops):
+def inter_metadomain_barplot(all_inter_treg_metadomains):
     fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 150)
     plt.sca(axs)
-    sns.histplot(all_inter_treg_megaloops.sum(axis=1), bins=100, rasterized=False,
+    sns.histplot(all_inter_treg_metadomains.sum(axis=1), bins=100, rasterized=False,
                  ax=axs)
     plt.ylim([0, 500])
     plt.xlabel("# metadomains (Treg)")
@@ -1580,15 +1575,15 @@ def inter_megaloop_barplot(all_inter_treg_megaloops):
 ###
 
 from plot_pvals import add_stat_annotation_boxplot_no_hue
-def inter_vs_intra_h3k27ac_boxplot(all_intra_treg_megaloops, all_inter_treg_megaloops, 
-                                   all_intra_megaloops, all_inter_megaloops, bw_val_df_all_250kb):
-    all_mega = all_inter_megaloops.sum(axis=1) + all_intra_megaloops.sum(axis=1)
-    delta = all_inter_treg_megaloops.sum(axis=1) - all_intra_treg_megaloops.sum(axis=1)
+def inter_vs_intra_h3k27ac_boxplot(all_intra_treg_metadomains, all_inter_treg_metadomains, 
+                                   all_intra_metadomains, all_inter_metadomains, bw_val_df_all_250kb):
+    all_mega = all_inter_metadomains.sum(axis=1) + all_intra_metadomains.sum(axis=1)
+    delta = all_inter_treg_metadomains.sum(axis=1) - all_intra_treg_metadomains.sum(axis=1)
     
     good = all_mega > 10
 
     key = 'Treg H3K27ac'
-    x, y = np.ravel(np.log2(1+bw_val_df_all_250kb[key])), all_intra_treg_megaloops.sum(axis=1)/all_mega
+    x, y = np.ravel(np.log2(1+bw_val_df_all_250kb[key])), all_intra_treg_metadomains.sum(axis=1)/all_mega
     x, y = np.ravel(np.log2(1+bw_val_df_all_250kb[key])), delta
     x, y = x[good], y[good]
     data = pd.DataFrame()
@@ -1608,21 +1603,21 @@ def inter_vs_intra_h3k27ac_boxplot(all_intra_treg_megaloops, all_inter_treg_mega
 
     plt.xlabel("H3K27ac signal")
     plt.ylabel("# Inter - # Intra ")
-    plt.title("Inter vs intra megaloops")
+    plt.title("Inter vs intra metadomains")
     return fig
 
 
 import statsmodels.nonparametric.smoothers_lowess
 
-def inter_vs_intra_h3k27ac_scatterplot(all_intra_treg_megaloops, all_inter_treg_megaloops, 
-                                   all_intra_megaloops, all_inter_megaloops, bw_val_df_all_250kb):
+def inter_vs_intra_h3k27ac_scatterplot(all_intra_treg_metadomains, all_inter_treg_metadomains, 
+                                   all_intra_metadomains, all_inter_metadomains, bw_val_df_all_250kb):
 
-    all_mega = all_inter_megaloops.sum(axis=1) + all_intra_megaloops.sum(axis=1)
-    delta = all_inter_treg_megaloops.sum(axis=1) - all_intra_treg_megaloops.sum(axis=1)
+    all_mega = all_inter_metadomains.sum(axis=1) + all_intra_metadomains.sum(axis=1)
+    delta = all_inter_treg_metadomains.sum(axis=1) - all_intra_treg_metadomains.sum(axis=1)
     good = all_mega > 15
 
     key = 'Treg H3K27ac'
-    x, y = np.ravel(np.log2(1+bw_val_df_all_250kb[key])), all_intra_treg_megaloops.sum(axis=1)/all_mega
+    x, y = np.ravel(np.log2(1+bw_val_df_all_250kb[key])), all_intra_treg_metadomains.sum(axis=1)/all_mega
     x, y = np.ravel(np.log2(1+bw_val_df_all_250kb[key])), delta
 
     # good[x < -2] = 0
@@ -1642,13 +1637,13 @@ def inter_vs_intra_h3k27ac_scatterplot(all_intra_treg_megaloops, all_inter_treg_
     return fig
 
 
-def megaloop_density_barplot(megaloop_hub_freq_df):
+def metadomain_density_barplot(metadomain_hub_freq_df):
     fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi=200)
-    megaloop_hub_freq_df.plot.bar(stacked=True, color = ['salmon', 'lightgray', 'aqua', 'white'], ax=axs, linewidth=.1, edgecolor='black')
+    metadomain_hub_freq_df.plot.bar(stacked=True, color = ['salmon', 'lightgray', 'aqua', 'white'], ax=axs, linewidth=.1, edgecolor='black')
     axs.set_axisbelow(True)
     plt.xticks(rotation=0)
     plt.xlabel("Hub")
-    plt.ylabel("Frac. of all \npossible megaloops")
+    plt.ylabel("Frac. of all \npossible metadomains")
     plt.title("Megaloop Density in Hub")
     leg = plt.legend(bbox_to_anchor=(0, 1), title='Megaloop in:', loc='upper left', frameon=False)
     leg.get_title().set_fontsize(6)
@@ -1656,33 +1651,33 @@ def megaloop_density_barplot(megaloop_hub_freq_df):
     return fig
 
 
-def megaloop_between_hub_barplot(all_intra_megaloops, self, columns_to_names, row_colors, dpi = 200):
-    megaloop_cluster_df = pd.DataFrame(all_intra_megaloops)
-    megaloop_cluster_df['cluster'] = -1
+def metadomain_between_hub_barplot(all_intra_metadomains, self, columns_to_names, row_colors, dpi = 200):
+    metadomain_cluster_df = pd.DataFrame(all_intra_metadomains)
+    metadomain_cluster_df['cluster'] = -1
     
     for u in [0, 4, 18]:
         inds = self.goodinds[self.merged_clustdict['all']==u]
-        megaloop_cluster_df.loc[inds, 'cluster'] = u
+        metadomain_cluster_df.loc[inds, 'cluster'] = u
     
-    megaloop_cluster_df = megaloop_cluster_df.groupby('cluster').sum()
-    megaloop_cluster_df = megaloop_cluster_df.T
+    metadomain_cluster_df = metadomain_cluster_df.groupby('cluster').sum()
+    metadomain_cluster_df = metadomain_cluster_df.T
     
-    megaloop_cluster_df['cluster'] = -1
+    metadomain_cluster_df['cluster'] = -1
     
     for u in [0, 4, 18]:
         inds = self.goodinds[self.merged_clustdict['all']==u]
-        megaloop_cluster_df.loc[inds, 'cluster'] = u
+        metadomain_cluster_df.loc[inds, 'cluster'] = u
     
-    megaloop_cluster_df = megaloop_cluster_df.groupby('cluster').sum()
-    megaloop_cluster_df = (megaloop_cluster_df / megaloop_cluster_df.sum(axis=1)).T
+    metadomain_cluster_df = metadomain_cluster_df.groupby('cluster').sum()
+    metadomain_cluster_df = (metadomain_cluster_df / metadomain_cluster_df.sum(axis=1)).T
 
-    megaloop_cluster_df.columns = [columns_to_names.get(x, "All other bins") for x in megaloop_cluster_df.columns]
-    megaloop_cluster_df.index = [columns_to_names.get(x, "All other bins") for x in megaloop_cluster_df.index]
+    metadomain_cluster_df.columns = [columns_to_names.get(x, "All other bins") for x in metadomain_cluster_df.columns]
+    metadomain_cluster_df.index = [columns_to_names.get(x, "All other bins") for x in metadomain_cluster_df.index]
     
-    megaloop_cluster_df = megaloop_cluster_df.drop("All other bins")[['Active 1', 'Active 2', 'Repressive', 'All other bins']]
+    metadomain_cluster_df = metadomain_cluster_df.drop("All other bins")[['Active 1', 'Active 2', 'Repressive', 'All other bins']]
     
     fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi=dpi)
-    megaloop_cluster_df.plot.bar(stacked=True, color = row_colors + ['lightgray'], ax=axs, linewidth=.1, edgecolor='black')
+    metadomain_cluster_df.plot.bar(stacked=True, color = row_colors + ['lightgray'], ax=axs, linewidth=.1, edgecolor='black')
     axs.set_axisbelow(True)
     plt.xticks(rotation=0)
     plt.xlabel("Hub")
@@ -1773,7 +1768,7 @@ def gene_length_per_hub(self, gene_to_ind, ind_to_gene, columns_to_names, row_co
     subgenes = geneLengths[geneLengths.index.isin(gene_to_ind.keys())]/1e3
     fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 150)
     for cluster in [0, 4, 18]:
-        genes = list(itertools.chain(*[ind_to_gene.get(x, []) for x in self.goodinds[self.merged_clustdict['all']==cluster]]))
+        genes = np.unique(list(itertools.chain(*[ind_to_gene.get(x, []) for x in self.goodinds[self.merged_clustdict['all']==cluster]])))
         genes = pd.Series(genes)
         genes = genes[genes.isin(subgenes.index)]
         lengths = subgenes.loc[genes]
@@ -2077,7 +2072,7 @@ def make_motif_enrichment_plot(self, _250kb_hub_annotations, all_ind_to_region, 
     add_legend(g.ax_heatmap, unique_labels, unique_colors)
     g.savefig('./plots/paper/s20/motifs_at_hubs.pdf', bbox_inches='tight')
 
-    # fig.savefig('./plots/motif_enrichment/megaloops.pdf', bbox_inches='tight')
+    # fig.savefig('./plots/motif_enrichment/metadomains.pdf', bbox_inches='tight')
     return motif_result_df_dict
 
 
@@ -2168,57 +2163,7 @@ def cusanovich_atac_clustering(self, _250kb_hub_annotations):
 
 
 
-### Figure S21
 
-from load_DESeq2_data import mod_index
-def get_motif_counts(pco=5e-5):
-    atac_peak_motif_counts = pd.read_csv('/Genomics/argo/users/gdolsten/pritlab/jupys/tregs/rudensky_scrna/prelim-analysis/call_motifs/output/counts/previous_bulk_atac_peaks_Mus_musculus/previous_bulk_atac_peaks_p=1e-05.csv',
-                                  index_col = 0) > 0 
-    meme_motif_df = pd.read_csv('/Genomics/argo/users/gdolsten/pritlab/yanjin_motifreg_hic/meme/fimo_output/treg_tcon_atac.bed', sep='\t')
-    motif_id_to_name_dict = dict(zip(meme_motif_df['motif_id'], meme_motif_df['dedup_protein_name']))
-    meme_motif_df = meme_motif_df[meme_motif_df['pval'] < pco]
-    meme_motif_df = meme_motif_df.value_counts(['peak', 'dedup_protein_name']).unstack()
-    meme_motif_df.index = meme_motif_df.index.str.lower().str.replace(":", "_").str.replace("-", "_")
-    meme_motif_df = meme_motif_df.fillna(0)
-    meme_motif_df = mod_index(meme_motif_df)
-    
-    vs = []
-    missing_inds = atac_peak_motif_counts.index[~atac_peak_motif_counts.index.isin(meme_motif_df.index)]
-    for i in missing_inds:
-        v = pd.Series(index=meme_motif_df.columns).fillna(0)
-        vs.append(v)
-    
-    tmpdf = pd.concat(vs, axis=1).T
-    tmpdf.index = missing_inds
-    meme_motif_df = pd.concat([meme_motif_df, tmpdf], axis=0)
-    meme_motif_df = meme_motif_df.loc[atac_peak_motif_counts.index]
-    return meme_motif_df, motif_id_to_name_dict
-
-
-
-
-def get_h3k27ac_motif_counts(pco=5e-5):    
-    atac_peak_motif_counts = bedtool_to_index(add_chr_to_bedtool(pbt.BedTool('/Genomics/argo/users/gdolsten/pritlab/jupys/tregs/peaks/differential/all_threshold_27ac.csv',
-                                )))
-    atac_peak_motif_counts.index = atac_peak_motif_counts.values
-    meme_motif_df = pd.read_csv('/Genomics/argo/users/gdolsten/pritlab/yanjin_motifreg_hic/meme/fimo_output/treg_h3k27ac_peaks.bed', sep='\t')
-    motif_id_to_name_dict = dict(zip(meme_motif_df['motif_id'], meme_motif_df['dedup_protein_name']))
-    meme_motif_df = meme_motif_df[meme_motif_df['pval'] < pco]
-    meme_motif_df = meme_motif_df.value_counts(['peak', 'dedup_protein_name']).unstack()
-    meme_motif_df.index = meme_motif_df.index.str.lower().str.replace(":", "_").str.replace("-", "_")
-    meme_motif_df = meme_motif_df.fillna(0)
-    vs = []
-    missing_inds = atac_peak_motif_counts.index[~atac_peak_motif_counts.index.isin(meme_motif_df.index)]
-    if len(missing_inds) > 0:
-        for _ in missing_inds:
-            v = pd.Series(index=meme_motif_df.columns).fillna(0)
-            vs.append(v)
-        
-        tmpdf = pd.concat(vs, axis=1).T
-        tmpdf.index = missing_inds
-        meme_motif_df = pd.concat([meme_motif_df, tmpdf], axis=0)
-    meme_motif_df = meme_motif_df.loc[atac_peak_motif_counts.index]
-    return meme_motif_df, motif_id_to_name_dict
 
 ### Figure S21
 from tad_functions import make_order2_and_cluster
@@ -2512,30 +2457,7 @@ def metadomain_vs_random_clustering(self, sep_oe_mat_treg, sep_oe_mat_tcon, bw_v
 
 
 
-def load_rna():
-    susie_path = '/Genomics/pritykinlab/susie/coexpression_analysis/'
-    # treg_precursor_rna_umi = pd.read_parquet(susie_path + 'GSM3978654_CD4plusCD25plus_dense.umis_per_gene.parquet')
-    # tregs_rna_umi = pd.read_parquet(susie_path + 'GSM3978655_Foxp3plus_dense.umis_per_gene.parquet')
-
-    treg_precursor_rna_corr = pd.read_parquet('/Genomics/pritykinlab/susie/coexpression_analysis/GSM3978654_CD4plusCD25plus_dense.coexpression_mat.parquet')
-    tregs_rna_corr = pd.read_parquet('/Genomics/pritykinlab/susie/coexpression_analysis/GSM3978655_Foxp3plus_dense.coexpression_mat.parquet')
-
-    treg_precursor_rna_corr += np.diag(np.diag(treg_precursor_rna_corr)*np.nan)
-    tregs_rna_corr += np.diag(np.diag(tregs_rna_corr)*np.nan)
-    same_genes = treg_precursor_rna_corr.index.intersection(tregs_rna_corr.index)
-
-    df1 = pd.read_parquet('/Genomics/pritykinlab/susie/coexpression_analysis/GSM3978654_CD4plusCD25plus_dense.umis_per_gene.parquet')
-    df2 = pd.read_parquet('/Genomics/pritykinlab/susie/coexpression_analysis/GSM3978655_Foxp3plus_dense.umis_per_gene.parquet')
-
-    df1 = df1.loc[same_genes]
-    df2 = df2.loc[same_genes]
-
-    same_genes = same_genes[(df1['Raw_UMI_count'] > 50) & (df2['Raw_UMI_count'] > 50)]
-
-
-    treg_precursor_rna_corr = treg_precursor_rna_corr.loc[same_genes, same_genes]
-    tregs_rna_corr = tregs_rna_corr.loc[same_genes, same_genes]
-    return treg_precursor_rna_corr, tregs_rna_corr    
+   
 
 import itertools
 def baseline_scrna_correlation(gene_dict, ind_to_gene, self, tregs_rna_corr, row_colors_dict, columns_to_names):
@@ -2565,7 +2487,8 @@ def baseline_scrna_correlation(gene_dict, ind_to_gene, self, tregs_rna_corr, row
         plt.xlim([-.3, .3])    
     return fig
 
-def differential_scrna_correlation(gene_dict, ind_to_gene, self, tregs_rna_corr, treg_precursor_rna_corr, hub_pileup_pval_df_250kb, hub_pileup_stat_df_250kb, columns_to_names,
+def differential_scrna_correlation(gene_dict, ind_to_gene, self, tregs_rna_corr, treg_precursor_rna_corr, 
+hub_pileup_pval_df_250kb, hub_pileup_stat_df_250kb, columns_to_names,
                                    diff_hic_pco, diff_hic_statco,
                                    ):
     treg_sets = []
@@ -2628,7 +2551,7 @@ def differential_scrna_correlation(gene_dict, ind_to_gene, self, tregs_rna_corr,
     
 
 ### Figure S24
-def superenhancer_megaloop_score_cdf_plot(hub_pileup_stat_df_250kb, SE_treg_count, SE_tcon_count, SE_common_count, columns_to_names):
+def superenhancer_metadomain_score_cdf_plot(hub_pileup_stat_df_250kb, SE_treg_count, SE_tcon_count, SE_common_count, columns_to_names):
     fig, axs = init_subplots_exact(3, 1, fgsz=(40*mm, 40*mm), dpi = 100, xspace=1.4)
     for c, col in enumerate([0, 4, 18]):
         plt.sca(axs[c])
@@ -2640,3 +2563,135 @@ def superenhancer_megaloop_score_cdf_plot(hub_pileup_stat_df_250kb, SE_treg_coun
         plt.xlabel("Megaloop score (MS)")
         plt.title(columns_to_names[col])
     return fig
+
+
+
+
+### Figure S28
+
+def metaloop_h3k27ac_boxplot(all_h3k27ac, metaloop_anchors):
+    l2 = add_chr_to_bedtool(pbt.BedTool.from_dataframe(all_h3k27ac)).intersect(metaloop_anchors, c=True).to_dataframe(header=None)
+
+    # l2['quantiles'] = pd.cut(l2['thickStart'], [-np.inf, .5, 1.5, 2.5, np.inf], labels=False)
+    l2['quantiles'] = l2['thickStart'].clip(0, 4)
+    xs = []
+    ys = [] 
+    ns = []
+    colors = sns.color_palette("coolwarm", n_colors = 5)
+    # for c, (clow, chigh) in enumerate(cutoffs):
+    # names = l[3][(l['score'] >= clow) & (l['score'] <= chigh)]
+    x = l2['quantiles']
+    y = np.log2(l2['name'])
+    data = pd.concat([x, y], axis=1)
+    fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 100)
+    sns.boxplot(data=data, x='quantiles', y='name', showfliers=False)
+    plt.ylabel("Log2(H3K27ac)\n(peaks in metaloop anchor)")
+    plt.xlabel("# Metaloops")
+
+    labels = [int(x.get_text()) for x in plt.gca().get_xticklabels()]
+    labels[-1] = '≥' + str(labels[-1])
+    plt.gca().set_xticklabels(labels)
+
+    box_pairs = [(labels[c], labels[c+1]) for c, _ in enumerate(labels[:-1])]
+    add_stat_annotation_boxplot_no_hue(plt.gca(), data, xcol='quantiles', ycol='name', 
+                                        order=labels,
+                                        box_pairs=box_pairs,
+                                        ymax=12, delta=.05, h=.1,
+                                    )
+    plt.title("H3K27ac in metaloop anchors")
+    fig.savefig('./plots/paper/s28/h3k27ac_metaloops.pdf', bbox_inches = 'tight')
+
+def fraction_tss_with_metaloops(my_tss_df, metaloop_anchors, gene_dict):
+    l = pbt.BedTool.from_dataframe(my_tss_df.iloc[:, :4]).slop(b=2_500, genome='mm10').intersect(metaloop_anchors, c=True
+                                                                        ).to_dataframe()
+    rpkm_bins = pd.qcut(gene_dict['Resting']['rpkm'].sort_values(),
+            np.linspace(0, 1, 10), labels=False)
+    rpkm_bins = pd.qcut(gene_dict['Resting']['rpkm'].sort_values(),
+            np.linspace(0, 1, 10), labels=False).dropna()
+    xs = np.unique(rpkm_bins)
+    frac_ys = []
+    ys = []
+    for u in xs:
+        genes = rpkm_bins.index[rpkm_bins == u]
+        values = l.set_index('name').loc[genes]['score']
+        y = np.nanmean(values > 0)
+        ys.append(y)
+    ys = arr(ys)
+    fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 100)
+    scatter_with_pearson(xs, ys, axs, marker='o')
+    plt.plot(xs, ys)
+
+    plt.xlabel("TSS quantiles")
+    plt.ylabel("Fraction with metaloops")
+    add_xaxis_labels("Low Expr", 'High Expr', plt.gca(), fontsize=6)
+    plt.gca().set_xticklabels([])
+    plt.ylim([0, .6])
+    plt.title("Fraction TSS with metaloops")
+    fig.savefig('./plots/paper/s28/tss_with_metaloops.pdf', bbox_inches = 'tight')    
+    
+from plot_pvals import add_stat_annotation_boxplot_no_hue
+def rpkm_by_metaloops(metaloop_anchors, my_tss_df, gene_dict):
+    l = pbt.BedTool.from_dataframe(my_tss_df.iloc[:, :4]
+                                ).slop(b=2_500, genome='mm10').saveas().intersect(metaloop_anchors, c=True).to_dataframe(header=None)
+    l['quantiles'] = pd.cut(l['score'], [-np.inf, .5, 1.5, 2.5,np.inf], labels=False)
+    xs = []
+    ys = [] 
+    ns = []
+    colors = sns.color_palette("coolwarm", n_colors = 5)
+    # for c, (clow, chigh) in enumerate(cutoffs):
+    # names = l[3][(l['score'] >= clow) & (l['score'] <= chigh)]
+    x = l.set_index('name')['quantiles']
+    y = (gene_dict['Resting']['rpkm'].loc[x.index])
+    data = pd.concat([x, y], axis=1)
+    fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 100)
+
+    sns.boxplot(data=data, x='quantiles', y='rpkm', showfliers=False, ax=plt.gca())
+    add_stat_annotation_boxplot_no_hue(plt.gca(), data, xcol='quantiles', ycol='rpkm', 
+                                    order=[0, 1, 2, '≥3'], 
+                                    box_pairs=[[0, 1], [1, 2], [2, '≥3'], ],
+                                    ymax=1.6, delta=.05, h=.02,
+                                    )
+
+    plt.gca().set_xticklabels([0, 1, 2, '≥3'])
+    plt.ylabel("RPKM")
+    plt.xlabel("# Metaloops")
+    fig.savefig('./plots/paper/s28/rpkm_in_metaloops.pdf', bbox_inches = 'tight')
+    plt.title("RPKM by metaloops")    
+# def atac_peaks_in_metaloop_anchors(metaloop_anchors, atac_peaks):
+#     metaloops_with_count = pbt.BedTool.from_dataframe(metaloop_anchors.to_dataframe().value_counts().reset_index())
+#     l2 = add_chr_to_bedtool(metaloops_with_count
+#                             ).intersect(add_chr_to_bedtool(atac_peaks), c=True).to_dataframe(header=None)
+
+#     l2['quantiles'] = l2['name']
+#     x = l2['quantiles']
+#     y = l2['score']
+#     data = pd.concat([x, y], axis=1)
+
+#     data['score'] = data['score'].clip(0, 2)
+#     data['quantiles'] = data['quantiles'].clip(0, 4)
+#     s = data.value_counts(['quantiles', 'score']).unstack().fillna(0)
+#     s = s.div(s.sum(axis=1), axis=0)
+
+#     fig, axs = init_subplots_exact(1, 1, fgsz=(40*mm, 40*mm), dpi = 100)
+
+#     s.plot.bar(stacked=True, ax=plt.gca())
+#     plt.xlabel("# Metaloops")
+#     plt.ylabel("# peaks")
+
+#     box_pairs = [(labels[c], labels[c+1]) for c, _ in enumerate(labels[:-1])]
+
+#     labels = [int(x.get_text()) for x in plt.gca().get_xticklabels()]
+#     labels[-1] = '≥' + str(labels[-1])
+#     plt.gca().set_xticklabels(labels)
+
+#     box_pairs = [(labels[c], labels[c+1]) for c, _ in enumerate(labels[:-1])]
+#     add_stat_annotation_boxplot_no_hue(plt.gca(), data, xcol='quantiles', ycol='score', 
+#                                         order=labels,
+#                                         box_pairs=box_pairs,
+#                                         ymax=1, delta=.05, h=.02,
+#                                     )
+
+#     plt.xticks(rotation=0)
+#     plt.legend(bbox_to_anchor=(1, 1))
+#     plt.title("# ATAC peaks in metaloop anchors")
+#     fig.savefig('./plots/paper/s28/atac_peaks_in_metaloops.pdf', bbox_inches = 'tight')    

@@ -1,11 +1,10 @@
 from get_focal_contacts_with_peak_prominence import *
 from aux_functions import *
 
-def get_megaloops_at_grange_with_collapsing(l1, l2, extend_by = 250_000, logp_co=8,
-                                            merged_mat = 'r=0.7_noArmCl13.mcool', resolution=5000,
-                                            filter_width=3,
-                                            filter_n=35):
-    pref = '/Genomics/argo/users/gdolsten/pritlab/mega_tcell_dataset/final_mega_coolfiles/'
+def get_metaloops_at_grange_with_collapsing(l1, l2, extend_by = 250_000, logp_co=8,
+                                            merged_mat = 'r=0.7', resolution=5000,
+                                            filter_width=3, filter_n=35):
+    pref = './hic_compendium_coolfiles/'
 
     cool = cooler.Cooler(pref + merged_mat + f"::/resolutions/{resolution}")
     l1, l2 = map(add_chr, [l1, l2])
@@ -84,7 +83,7 @@ from plotting_functions import *
 def make_comprehensive_plot_grange_collapsing(grange1, grange2, d=40, res=5_000, poiss_vmax=20, extend_by = 250_000, logp_co=8, s = 280,
                                               linewidth=2, fgsz=(30*mm, 30*mm)):
     grange1, grange2 = map(lambda x: extend_l(x, extend_by), [grange1, grange2])
-    collapsemat, filtmat, logp_mat, peak_row_starts, peak_col_starts = get_megaloops_at_grange_with_collapsing(grange1, grange2, extend_by = 0, logp_co=logp_co)
+    collapsemat, filtmat, logp_mat, peak_row_starts, peak_col_starts = get_metaloops_at_grange_with_collapsing(grange1, grange2, extend_by = 0, logp_co=logp_co)
     L, R = grange2[1:]
     T, B = grange1[1:]
     fig, axs = init_subplots_exact(3, 1, fgsz=fgsz, dpi = 200, xspace=1.4)
@@ -126,9 +125,10 @@ def make_comprehensive_plot_grange_collapsing(grange1, grange2, d=40, res=5_000,
 
 print(1)
 def make_simple_plot_grange_collapsing(grange1, grange2, d=40, res=5_000, poiss_vmax=20, extend_by = 250_000, logp_co=8, s = 280,
-                                              linewidth=2, fgsz=(40*mm, 40*mm), ignore_set={}):
+                                              linewidth=2, fgsz=(40*mm, 40*mm), ignore_set={},
+                                              skip_rik=False, skip_gm=False):
     grange1, grange2 = map(lambda x: extend_l(x, extend_by), [grange1, grange2])
-    collapsemat, filtmat, logp_mat, peak_row_starts, peak_col_starts = get_megaloops_at_grange_with_collapsing(grange1, grange2, extend_by = 0, logp_co=logp_co)
+    collapsemat, filtmat, logp_mat, peak_row_starts, peak_col_starts = get_metaloops_at_grange_with_collapsing(grange1, grange2, extend_by = 0, logp_co=logp_co)
     L, R = grange2[1:]
     T, B = grange1[1:]
     fig, axs = init_subplots_exact(1, 1, fgsz=fgsz, dpi = 200, xspace=1.4, as_list=True)
@@ -146,12 +146,12 @@ def make_simple_plot_grange_collapsing(grange1, grange2, d=40, res=5_000, poiss_
 
     plt.grid(False)
     tmp1 = add_GTF_to_axis(grange2, plt.gca(), gene_name_fontsize=6, ignore_set = ignore_set,
-                    ignore_method='grayout_no_text'
+                    ignore_method='grayout_no_text', skip_gm=skip_gm, skip_rik=skip_rik,
                    )
     tmp1.grid(False)
 
     tmp2 = add_GTF_to_L_axis(grange1, plt.gca(), gene_name_fontsize=6, ignore_set = ignore_set,
-                    ignore_method='grayout_no_text', 
+                    ignore_method='grayout_no_text',  skip_gm=skip_gm, skip_rik=skip_rik,
                    )
     tmp2.grid(False)
 

@@ -38,7 +38,7 @@ def get_cellstatus_from_experiments(index):
 
 def get_celltype_from_experiments(index):
     celltypes = pd.Series(index).copy()
-    celltypes[celltypes.index] = 'None'
+    celltypes[celltypes.index] = 'Not_Treg_Tcon'
     celltypes.index = index
     statusdict = {
         'CD4' : ((index.str.contains('CD4_')) & (~(index.str.contains('CD4SP')))) | (index.str.contains('_H3K9me3_WT__Mus_musculus__ChIP')),
@@ -59,11 +59,16 @@ def get_celltype_from_experiments(index):
                 '_Foxp3_ChIP-seq_in_Foxp1-_Treg__rep1__Mus_musculus__ChIP-Seq',
                 '_Foxp3_ChIP-seq_in_Foxp1-_Treg__rep3__Mus_musculus__ChIP-Seq',
                 '_Foxp3_ChIP-seq_in_Foxp1-_Treg__rep2__Mus_musculus__ChIP-Seq',
+                '_Foxp1_ChIP-seq_in_Foxp1+_Treg__rep1__Mus_musculus__ChIP-Seq',
+                '_Foxp1_ChIP-seq_in_Foxp1-_Treg__genetic_control___Mus_musculus__ChIP-Seq',
                ]
     celltypes[celltypes.index.isin(outliers)] = "outlier"
     celltypes[celltypes.index.str.contains("KO")] = 'KO'
     celltypes[celltypes.index.str.contains("CNS")] = 'CNSKO'
-
+    celltypes[celltypes == '_Tn_H3K27me3_ChIP_Rep1__Mus_musculus__ChIP-Seq'] = 'Tcon'
+    celltypes[celltypes == '_Tn_H3K27me3_ChIP_Rep2__Mus_musculus__ChIP-Seq'] = 'Tcon'
+    celltypes[celltypes.index.str.contains("DN2")] = 'DN2'
+    print(1)
     celltypes.name = 'Celltype'
     return celltypes
 
@@ -127,22 +132,22 @@ def get_target_from_experiments(index):
                 '_Treg_Foxp3_ChIP_Rep1__Tech_Rep2___Mus_musculus__ChIP-Seq',
                 '_aTreg_Foxp3_ChIP_Rep1__Tech_Rep_2___Mus_musculus__ChIP-Seq',
                 '_Foxp1_ChIP-seq_in_conventional_T_cells__rep2__Mus_musculus__ChIP-Seq-1',
-                    '_CD4_Cbfb_ChIP__Mus_musculus__ChIP-Seq',
-                    '_Foxp1_ChIP-seq_in_Foxp1-_Treg__genetic_control___Mus_musculus__ChIP-Seq',
-                    '_Foxp1_ChIP-seq_in_Foxp1+_Treg__rep2__Mus_musculus__ChIP-Seq',
-                    '_aTreg_Foxp3_ChIP_Rep3__Mus_musculus__ChIP-Seq',
-                    '_Foxp3_ChIP-seq_in_Foxp1-_conventional_T_cells__rep3__genetic_control___Mus_musculus__ChIP-Seq',
-                    '_Foxp1_ChIP-seq_in_Foxp1+_Treg__rep1__Mus_musculus__ChIP-Seq',
-                    '_Foxp1_ChIP-seq_in_Foxp1+_Treg__rep3__Mus_musculus__ChIP-Seq',
-                    '_Foxp1_ChIP-seq_in_conventional_T_cells__rep2__Mus_musculus__ChIP-Seq',
-                    '_Foxp3_ChIP-seq_in_Foxp1+_conventional_T_cells__rep1__genetic_control___Mus_musculus__ChIP-Seq',
-                    '_aTreg_Foxp3_ChIP_Rep2__Mus_musculus__ChIP-Seq',
-                    '_Foxp3_ChIP-seq_in_Foxp1-_Treg__rep2__Mus_musculus__ChIP-Seq',
-                    '_Foxp3_ChIP-seq_in_Foxp1+_conventional_T_cells__rep3__genetic_control___Mus_musculus__ChIP-Seq',
-                    '_aTreg_Foxp3_ChIP_Rep1__Tech_Rep_1___Mus_musculus__ChIP-Seq',
-                    '_Foxp3_ChIP-seq_in_Foxp1+_conventional_T_cells__rep2__genetic_control___Mus_musculus__ChIP-Seq',
-                    '_Foxp3_ChIP-seq_in_Foxp1-_conventional_T_cells__rep1__genetic_control___Mus_musculus__ChIP-Seq',
-                    '_Treg_Foxp3_ChIP_Rep1__Tech_Rep1___Mus_musculus__ChIP-Seq',
+                '_CD4_Cbfb_ChIP__Mus_musculus__ChIP-Seq',
+                '_Foxp1_ChIP-seq_in_Foxp1-_Treg__genetic_control___Mus_musculus__ChIP-Seq',
+                '_Foxp1_ChIP-seq_in_Foxp1+_Treg__rep2__Mus_musculus__ChIP-Seq',
+                '_aTreg_Foxp3_ChIP_Rep3__Mus_musculus__ChIP-Seq',
+                '_Foxp3_ChIP-seq_in_Foxp1-_conventional_T_cells__rep3__genetic_control___Mus_musculus__ChIP-Seq',
+                '_Foxp1_ChIP-seq_in_Foxp1+_Treg__rep1__Mus_musculus__ChIP-Seq',
+                '_Foxp1_ChIP-seq_in_Foxp1+_Treg__rep3__Mus_musculus__ChIP-Seq',
+                '_Foxp1_ChIP-seq_in_conventional_T_cells__rep2__Mus_musculus__ChIP-Seq',
+                '_Foxp3_ChIP-seq_in_Foxp1+_conventional_T_cells__rep1__genetic_control___Mus_musculus__ChIP-Seq',
+                '_aTreg_Foxp3_ChIP_Rep2__Mus_musculus__ChIP-Seq',
+                '_Foxp3_ChIP-seq_in_Foxp1-_Treg__rep2__Mus_musculus__ChIP-Seq',
+                '_Foxp3_ChIP-seq_in_Foxp1+_conventional_T_cells__rep3__genetic_control___Mus_musculus__ChIP-Seq',
+                '_aTreg_Foxp3_ChIP_Rep1__Tech_Rep_1___Mus_musculus__ChIP-Seq',
+                '_Foxp3_ChIP-seq_in_Foxp1+_conventional_T_cells__rep2__genetic_control___Mus_musculus__ChIP-Seq',
+                '_Foxp3_ChIP-seq_in_Foxp1-_conventional_T_cells__rep1__genetic_control___Mus_musculus__ChIP-Seq',
+                '_Treg_Foxp3_ChIP_Rep1__Tech_Rep1___Mus_musculus__ChIP-Seq',
                ]
     experiments['Experiment'][experiments.index.isin(outliers)] = 'No'
     experiments['Experiment'].replace('None', 'No', inplace=True)

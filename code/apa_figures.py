@@ -198,3 +198,97 @@ def apa_diag_nonorm(anchors, cool_dict, wsz=20):
     for key in mat_dict:
         mat_dict[key] = np.asarray(mat_dict[key])
     return mat_dict, places
+
+
+from aux_functions import make_int
+import cooler
+def process_anchors(anchors_chunk, cool_dict, wsz, res):
+    mat_dict_chunk = {}
+    places_chunk = []
+    for condition in cool_dict:
+        logging.info(f"Processing {condition}")
+        cool = cooler.Cooler(cool_dict[condition])
+        logging.info(f"Created Cooler object for {condition}")
+        mat_dict_chunk[condition] = []
+        for i in anchors_chunk:
+            l1 = make_int(i[:3])
+            s = ((int(l1[1]) + int(l1[2])) // 2) // res * res
+            places_chunk.append([i[:3]])
+            new_l1 = (l1[0], int(s) - res * wsz, int(s) + res * (wsz + 1))
+            try:
+                val = np.asarray(cool.matrix(balance=True).fetch(new_l1, new_l1))
+            except Exception as e:
+                logging.error(f"Could not fetch in {condition}, error: {e}")
+                bad = np.zeros((2 * wsz + 1, 2 * wsz + 1)) * np.nan
+                mat_dict_chunk[condition].append(bad)
+                continue
+            if val.shape != (2 * wsz + 1, 2 * wsz + 1):
+                logging.warning(f"Wrong shape: {val.shape} in {condition}")
+                bad = np.zeros((2 * wsz + 1, 2 * wsz + 1)) * np.nan
+                mat_dict_chunk[condition].append(bad)
+                continue
+            diag = 0
+            inds = -np.arange(0, 2 * wsz + 1)
+            good_inds = np.subtract.outer(inds, inds) + diag >= 2
+            val[~good_inds] = np.nan
+            mat_dict_chunk[condition].append(val)
+    return mat_dict_chunk, places_chunk
+
+
+import pybedtools as pbt
+def split_bedtool(bedtool, num_splits):
+    n = len(bedtool)
+    chunk_size = n // num_splits
+    chunks = []
+    for i in range(num_splits):
+        if i == num_splits - 1:
+            chunks.append(list(bedtool[i * chunk_size :]))
+        else:
+            chunks.append(list(bedtool[i * chunk_size : (i + 1) * chunk_size]))
+    return chunks
+
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Log message format
+    datefmt='%Y-%m-%d %H:%M:%S',  # Date format
+    handlers=[
+        logging.FileHandler("apa_diag_nonorm_parallel.log"),  # Log to a file
+        logging.StreamHandler()  # Also log to console
+    ]
+)
+
+import multiprocessing as mp
+def apa_diag_nonorm_parallel(anchors, cool_dict, wsz=20, num_processes=30):
+    logging.info("Starting apa_diag_nonorm_parallel")
+    res = int(next(iter(cool_dict.values())).split("/")[-1])
+    logging.info(f"Using bin size: {res}")
+
+    # Split the anchors into chunks for each process
+    anchors_chunks = split_bedtool(anchors, num_processes)
+    # Create a multiprocessing pool
+    with mp.Pool(processes=num_processes) as pool:
+        logging.info("Starting multiprocessing pool")
+        results = [pool.apply_async(process_anchors, args=(chunk, cool_dict, wsz, res)) for chunk in anchors_chunks]
+        output = [p.get() for p in results]
+        logging.info("Finished processing all chunks")
+
+    # Combine the results from all processes
+    mat_dict_combined = {}
+    places_combined = []
+
+    for mat_dict_chunk, places_chunk in output:
+        places_combined.extend(places_chunk)
+        for condition in mat_dict_chunk:
+            if condition not in mat_dict_combined:
+                mat_dict_combined[condition] = []
+            mat_dict_combined[condition].extend(mat_dict_chunk[condition])
+
+    # Convert lists to arrays
+    for key in mat_dict_combined:
+        mat_dict_combined[key] = np.asarray(mat_dict_combined[key])
+
+    logging.info("apa_diag_nonorm_parallel completed")
+    return mat_dict_combined, places_combined

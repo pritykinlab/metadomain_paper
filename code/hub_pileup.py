@@ -47,7 +47,7 @@ def get_inter_hub_peak_hichip(all_inds, all_ind_to_region, merged_clustdict, goo
     return data
 
 
-def get_inds_for_oe_df(all_intra_megaloops, bedtool_dict, all_ind_to_region, chrom_to_start, chrom_to_end, CHROMS_TO_USE):
+def get_inds_for_oe_df(all_intra_metadomains, bedtool_dict, all_ind_to_region, chrom_to_start, chrom_to_end, CHROMS_TO_USE):
     l = 0
     index_dict = {}
     for key, bedtool in bedtool_dict.items():
@@ -61,22 +61,22 @@ def get_inds_for_oe_df(all_intra_megaloops, bedtool_dict, all_ind_to_region, chr
         
             stat5_outer = np.add.outer(has_bedtool, has_bedtool)
         
-            idx = (all_intra_megaloops[sl1, sl1] > 0) & (stat5_outer > 0)
-            megaloops = np.where(np.triu(idx))
-            ind = chrom + "_" + pd.Series((megaloops[0]+s).astype('str')) + "_" + pd.Series((megaloops[1]+s).astype('str'))
+            idx = (all_intra_metadomains[sl1, sl1] > 0) & (stat5_outer > 0)
+            metadomains = np.where(np.triu(idx))
+            ind = chrom + "_" + pd.Series((metadomains[0]+s).astype('str')) + "_" + pd.Series((metadomains[1]+s).astype('str'))
             indices.extend(ind)
         index_dict[key] = indices
     return index_dict
 
-def get_treg_inds_for_oe_df(all_intra_megaloops, deseq_effect_mat,
+def get_treg_inds_for_oe_df(all_intra_metadomains, deseq_effect_mat,
                         chrom_to_start, chrom_to_end, CHROMS_TO_USE, cutoff=4, ):
     indices = []
     for chrom in CHROMS_TO_USE:
         s, e = chrom_to_start[chrom], chrom_to_end[chrom]
         sl1 = slice(s, e)
 
-        megaloops = np.where(np.triu((deseq_effect_mat[sl1, sl1] > cutoff) & (all_intra_megaloops[sl1, sl1] > 0)))
-        ind = chrom + "_" + pd.Series((megaloops[0]+s).astype('str')) + "_" + pd.Series((megaloops[1]+s).astype('str'))
+        metadomains = np.where(np.triu((deseq_effect_mat[sl1, sl1] > cutoff) & (all_intra_metadomains[sl1, sl1] > 0)))
+        ind = chrom + "_" + pd.Series((metadomains[0]+s).astype('str')) + "_" + pd.Series((metadomains[1]+s).astype('str'))
         indices.extend(ind)
     return indices
 
@@ -87,9 +87,9 @@ from collections import defaultdict
 from make_figure4 import *
 import itertools
 
-def pileup_bins_with_hub(df, megaloop_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
+def pileup_bins_with_hub(df, metadomain_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
                             inter_and_intra_connections_tcon, resolution_in=250_000, resolution_out = 50_000, 
-                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip_megaloops=False):
+                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip_metadomains=False):
     all_mat_dict = defaultdict(list)
     all_metadata = []
     chromsoi = sorted(df['chrom'].unique())
@@ -112,7 +112,7 @@ def pileup_bins_with_hub(df, megaloop_pileup_cooldict, chrom_to_start, inter_and
             subdf_Y['norm_ind'] = subdf_Y['ind'] - chrom_to_start[chrom2]
             rows, cols = list(zip(*itertools.product(subdf_X.index, subdf_Y.index)))
             
-            for name, cool in megaloop_pileup_cooldict.items():
+            for name, cool in metadomain_pileup_cooldict.items():
                 assert cool.info['bin-size'] == resolution_out, (cool.info['bin-size'], resolution_out)
                 append_mats(subdf_X, subdf_Y, cool, name, rows, cols, all_mat_dict, 
                             padding_size=padding_size, stride=stride, fetch_oe=fetch_oe)
@@ -125,7 +125,7 @@ def pileup_bins_with_hub(df, megaloop_pileup_cooldict, chrom_to_start, inter_and
                 ind_X, ind_Y = row_X['ind'], row_Y['ind']
                 cluster_X, cluster_Y = row_X['cluster'], row_Y['cluster']
 
-                if skip_megaloops:
+                if skip_metadomains:
                     mega_loops_treg = None
                     mega_loops_tcon = None
                 else:
@@ -140,9 +140,9 @@ def pileup_bins_with_hub(df, megaloop_pileup_cooldict, chrom_to_start, inter_and
     return all_mat_dict, all_metadata
 
 
-def pileup_bins_at_diag(df, megaloop_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
+def pileup_bins_at_diag(df, metadomain_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
                             inter_and_intra_connections_tcon, resolution_in=250_000, resolution_out = 50_000, 
-                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip_megaloops=False):
+                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip_metadomains=False):
     all_mat_dict = defaultdict(list)
     all_metadata = []
     chromsoi = sorted(df['chrom'].unique())
@@ -165,7 +165,7 @@ def pileup_bins_at_diag(df, megaloop_pileup_cooldict, chrom_to_start, inter_and_
             subdf_Y['norm_ind'] = subdf_Y['ind'] - chrom_to_start[chrom2]
             rows, cols = subdf_X.index, subdf_Y.index
             
-            for name, cool in megaloop_pileup_cooldict.items():
+            for name, cool in metadomain_pileup_cooldict.items():
                 assert cool.info['bin-size'] == resolution_out, (cool.info['bin-size'], resolution_out)
                 append_mats(subdf_X, subdf_Y, cool, name, rows, cols, all_mat_dict, 
                             padding_size=padding_size, stride=stride, fetch_oe=fetch_oe)
@@ -178,7 +178,7 @@ def pileup_bins_at_diag(df, megaloop_pileup_cooldict, chrom_to_start, inter_and_
                 ind_X, ind_Y = row_X['ind'], row_Y['ind']
                 cluster_X, cluster_Y = row_X['cluster'], row_Y['cluster']
 
-                if skip_megaloops:
+                if skip_metadomains:
                     mega_loops_treg = None
                     mega_loops_tcon = None
                 else:
@@ -199,9 +199,9 @@ def pileup_bins_at_diag(df, megaloop_pileup_cooldict, chrom_to_start, inter_and_
 
 
 
-def pileup_bin_pairs(df1, df2, megaloop_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
+def pileup_bin_pairs(df1, df2, metadomain_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
                             inter_and_intra_connections_tcon, resolution_in=250_000, resolution_out = 50_000, 
-                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip=1, skip_megaloops=False):
+                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip=1, skip_metadomains=False):
     all_mat_dict = defaultdict(list)
     all_metadata = []
     chromsoi = list(set(list(df1['chrom'].unique()) + list(df2['chrom'].unique())))
@@ -224,7 +224,7 @@ def pileup_bin_pairs(df1, df2, megaloop_pileup_cooldict, chrom_to_start, inter_a
             subdf_Y['norm_ind'] = subdf_Y['ind'] - chrom_to_start[chrom2]
             rows, cols = list(zip(*itertools.product(subdf_X.index, subdf_Y.index)))
             rows, cols = rows[::skip], cols[::skip]
-            for name, cool in megaloop_pileup_cooldict.items():
+            for name, cool in metadomain_pileup_cooldict.items():
                 assert cool.info['bin-size'] == resolution_out
                 append_mats(subdf_X, subdf_Y, cool, name, rows, cols, all_mat_dict, 
                             padding_size=padding_size, stride=stride, fetch_oe=fetch_oe)
@@ -237,7 +237,7 @@ def pileup_bin_pairs(df1, df2, megaloop_pileup_cooldict, chrom_to_start, inter_a
                 ind_X, ind_Y = row_X['ind'], row_Y['ind']
                 cluster_X, cluster_Y = row_X['cluster'], row_Y['cluster']
 
-                if skip_megaloops:
+                if skip_metadomains:
                     mega_loops_treg = None
                     mega_loops_tcon = None
                 else:
@@ -253,9 +253,9 @@ def pileup_bin_pairs(df1, df2, megaloop_pileup_cooldict, chrom_to_start, inter_a
     return all_mat_dict, all_metadata
 
 
-def pileup_direct_bin_pairs(df1, df2, megaloop_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
+def pileup_direct_bin_pairs(df1, df2, metadomain_pileup_cooldict, chrom_to_start, inter_and_intra_connections_treg, 
                             inter_and_intra_connections_tcon, resolution_in=250_000, resolution_out = 50_000, 
-                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip=1, skip_megaloops=False, log=True):
+                            intra=False, inter=True, padding_size=30, fetch_oe=True, skip=1, skip_metadomains=False, log=True):
     all_mat_dict = defaultdict(list)
     all_metadata = []
     chromsoi = list(set(list(df1['chrom'].unique()) + list(df2['chrom'].unique())))
@@ -280,7 +280,7 @@ def pileup_direct_bin_pairs(df1, df2, megaloop_pileup_cooldict, chrom_to_start, 
             rows, cols = subdf_X.index, subdf_Y.index
 
             rows, cols = rows[::skip], cols[::skip]
-            for name, cool in megaloop_pileup_cooldict.items():
+            for name, cool in metadomain_pileup_cooldict.items():
                 assert cool.info['bin-size'] == resolution_out
                 append_mats(subdf_X, subdf_Y, cool, name, rows, cols, all_mat_dict, 
                             padding_size=padding_size, stride=stride, fetch_oe=fetch_oe, log=log)
@@ -293,7 +293,7 @@ def pileup_direct_bin_pairs(df1, df2, megaloop_pileup_cooldict, chrom_to_start, 
                 ind_X, ind_Y = row_X['ind'], row_Y['ind']
                 cluster_X, cluster_Y = row_X['cluster'], row_Y['cluster']
 
-                if skip_megaloops:
+                if skip_metadomains:
                     mega_loops_treg = None
                     mega_loops_tcon = None
                 else:
@@ -508,6 +508,68 @@ def plot_ind_pileups_from_result(key, mat_dict, metadata, clusters, ind, res=50_
         a.set_yticks([-mb, 0, mb])
         a.set_xticklabels([-cutoff, "Anchor2", cutoff])
         a.tick_params(labeltop = False, top = False, labelbottom = True, bottom = True)
+        a.get_yticklabels()[1].set_rotation(90)
+        a.get_yticklabels()[1].set_va('center')
+
+    figs.append(fig)
+    return figs, all_results
+
+
+def plot_all_pairs(key, mat_dict, metadata, clusters, res=50_000, columns_to_names={}, row_colors_dict={},
+                                     vmin = .5, vmax = 1, s1=0, s2=-1, center_method='None', center=2,
+                                     show_filts=False, delta_co=0):
+    figs = []
+    mats = mat_dict[key]
+    all_results = {}
+    n = len(np.unique(clusters))
+    fig, axs = init_subplots_exact(n*n, n, fgsz=(20*mm, 20*mm), dpi = 100)
+    print(len(axs))
+    for c, (u1, u2) in enumerate(itertools.product(np.unique(clusters), np.unique(clusters))):
+        idx1 = (metadata['cluster1'] == u1) & (metadata['cluster2'] == u2) & ((metadata['ind1'] - metadata['ind2']).abs() > 10)
+        idx2 = (metadata['cluster2'] == u1) & (metadata['cluster1'] == u2) & ((metadata['ind1'] - metadata['ind2']).abs() > 10)
+
+        mat = mats[idx1 | idx2]
+        if isinstance(vmin, list):
+            vmin_ = vmin[c]
+        else:
+            vmin_ = vmin
+        if isinstance(vmax, list):
+            vmax_ = vmax[c]
+        else:   
+            vmax_ = vmax
+        mat, colorbar, results = plot_pileup_mat(mat, axs[c], vmax=vmax_, vmin=vmin_, res=res, s1=s1, s2=s2,
+                                                 method=center_method, center=center, show_filts=show_filts,
+                                                 delta_co=delta_co)    
+
+        all_results[u1] = results
+
+    for c, u in enumerate(np.unique(clusters)):
+        plt.sca(axs[c])
+        plt.title(f'{columns_to_names.get(u, str(u)).replace(newline, " ")}', color = row_colors_dict[columns_to_names[u]])
+
+    cbar_ax = axs[-1].inset_axes(transform = axs[c].transAxes, bounds = (1.1, 0, .05, 1))
+    plt.colorbar(colorbar, cax=cbar_ax, shrink=.5)
+    cbar_ax.grid(False)
+    fig.add_axes(cbar_ax)
+    plt.sca(cbar_ax)
+    plt.yticks(fontsize=4)
+
+    mb = mat.shape[1]*res // 2 / 1e6
+    for c, a in enumerate(axs):
+        cutoff = np.round(mb, 1)
+        a.grid(False)
+        a.set_xticks([-mb, 0, mb])
+        if c%n == 0:
+            a.set_yticklabels([-cutoff, "Anchor1", cutoff])
+        else:
+            a.set_yticklabels([])
+        if c >= n*n-n:
+            a.set_xticklabels([-cutoff, "Anchor2", cutoff])
+            a.tick_params(labeltop = False, top = False, labelbottom = True, bottom = True)
+        else:
+            a.tick_params(labeltop = False, top = False, labelbottom = False, bottom = True)
+
+        a.set_yticks([-mb, 0, mb])
         a.get_yticklabels()[1].set_rotation(90)
         a.get_yticklabels()[1].set_va('center')
 

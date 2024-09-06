@@ -53,10 +53,8 @@ def plot_intrachromosomal_hic(i1, i2, all_ind_to_region, cooldict, ax=None, d=30
                             res = 50000,
                               **kwargs):
     n = len(cooldict)
-    print("HII")
     if (ax is None) and (plot==True):
         fig, axs = init_subplots_exact(n, n_rows, fgsz=(fgsz, fgsz), dpi=100)
-        print(n)
     l1, l2 = all_ind_to_region[i1], all_ind_to_region[i2]
     if add_chr:
         l1, l2 = add_chr_to_anc(l1), add_chr_to_anc(l2)
@@ -467,7 +465,7 @@ class MyGeneModelPlot(pygbrowse.plots.GeneModelPlot):
         ax.set_ylabel(self.label)
 
 def add_GTF_to_axis(place, ax, ignore_set=[], roundby=-5, gene_name_fontsize=14, outpath= '/Genomics/argo/users/gdolsten/pritlab/jupys/tregs/pygbrowse/Mus_musculus.GRCm38.93.chr.gff3.gz', 
-                    ignore_method='ignore', skip_rik=False, skip_gm=False, **kwargs):
+                    bound_L = -.15, bound_R = .1, ignore_method='ignore', skip_rik=False, skip_gm=False, **kwargs):
     chrom1, s1, e1 = place
     genemodels = pygbrowse.datasources.Gff3Annotations(f'{outpath}.bgzf')
     genemodel_plotter = MyGeneModelPlot(genemodels, gene_name_fontsize=gene_name_fontsize, ignore_method=ignore_method,
@@ -486,7 +484,7 @@ def add_GTF_to_axis(place, ax, ignore_set=[], roundby=-5, gene_name_fontsize=14,
     tmpax.spines['right'].set_visible(False)
 
     newax1 = ax.inset_axes(transform=ax.transAxes,
-        bounds = (0, -.15, 1, .1))
+        bounds = (0, bound_L, 1, bound_R))
 
     for a in [tmpax]:
         s, e = a.get_xlim()
@@ -523,7 +521,6 @@ def add_GTF_to_axis(place, ax, ignore_set=[], roundby=-5, gene_name_fontsize=14,
             x, y, text = child._x, child._y, child.get_text()
             if len(text) > 1:
                 newax1.text(x, y, text, zorder=2, fontsize=gene_name_fontsize, rotation=0)
-                print(text)
     newax1.set_ylim(-.5, 1)
     newax1.set_xlabel(f"Mb, chr{chrom1}")
 
@@ -581,7 +578,6 @@ def add_GTF_to_L_axis(place, ax, ignore_set=[], roundby=-5, gene_name_fontsize=1
         if type(child) == mpl.text.Text:
             x, y, text = child._x, child._y, child.get_text()
             if len(text) > 1:
-                print(text)
                 newax1.text(y, x, text, zorder=2, fontsize=gene_name_fontsize, rotation=-90)
     
     newax1.set_xlim(tmpax.get_ylim())
@@ -674,7 +670,6 @@ def plot_one_GTF_on_axis(place, ax, ignore_set=[], roundby=-5, gene_name_fontsiz
             x, y, text = child._x, child._y, child.get_text()
             if len(text) > 1:
                 newax1.text(x, y, text, zorder=2, fontsize=gene_name_fontsize, rotation=0)
-                print(text)
     newax1.set_ylim(-.5, 1)
     newax1.set_xlabel(f"Mb, chr{chrom1}")
 
@@ -941,7 +936,6 @@ def add_loop_anchors_to_ax(place1, place2, anchors, ax, res=5000):
     anc_xs = []
     for i in anchors.intersect(pbt.BedTool([[chrom1, s1, e1]]), u=True):
         anc_xs.append((int(i[1])-s1)/res)
-    print(anc_xs)
     loopax_x.vlines(anc_xs, -10, 0, color='black')
     loopax_x.set_ylabel("Short-scale loops", rotation=0, va='bottom', ha='left')
     loopax_x.yaxis.set_label_position(position='right')
@@ -952,7 +946,6 @@ def add_loop_anchors_to_ax(place1, place2, anchors, ax, res=5000):
     anc_xs = []
     for i in anchors.intersect(pbt.BedTool([[chrom2, s2, e2]]), u=True):
         anc_xs.append((int(i[1])-s2)/res)
-    print(anc_xs)
     loopax_y.hlines(anc_xs, -10, 0, color='black')
 
     for a in [loopax_x, loopax_y]:
@@ -1494,7 +1487,6 @@ def plot_overlaps(bedtool_dict, baseline, jumpsize = 5_000, jumps = np.arange(-1
             p = bedprop(shifted_bedtool, baseline)  
             ps.append(p)
         plt.plot(jumpsizes, ps, label=name)
-        print("Done with", name)
     plt.legend()
     plt.xlabel('Shift (bp)')
     plt.ylabel('Proportion Overlapping')
