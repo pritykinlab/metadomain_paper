@@ -326,7 +326,7 @@ def make_metadomain_plot(all_intra_treg_metadomains, SE_count):
     metadomain_count = all_intra_treg_metadomains.sum(axis=0)
     metadomain_SE_count_df = pd.DataFrame([SE_count, metadomain_count]).T  #.value_counts([0, 1]).unstack()
     metadomain_SE_count_df[0] = metadomain_SE_count_df[0].astype(int)
-    metadomain_SE_count_df[metadomain_SE_count_df[0] == 3] = 2
+    metadomain_SE_count_df[metadomain_SE_count_df[0] >= 3] = 2
     
     colors = ['lightgray', 'violet', 'purple']
     fig = plt.figure(figsize=(40*mm, 40*mm), dpi=100)
@@ -393,7 +393,8 @@ def interchrom_circos_plot(my_treg_comp, my_tcon_comp, all_inter_metadomains, al
     Garc    = pycircos.Garc
     Gcircle = pycircos.Gcircle
     circle = Gcircle() 
-    for chrom, size in chromsizes.items():
+    for chrom in list(chrom_to_start):
+        size = chromsizes[chrom]
         if 'M' in chrom or 'Y' in chrom or 'X' in chrom:
             continue
         arc    = Garc(arc_id='chr' + chrom, size=size, interspace=3, 
@@ -453,13 +454,17 @@ def interchrom_circos_plot(my_treg_comp, my_tcon_comp, all_inter_metadomains, al
 from scipy.stats import zscore
 from sklearn.cluster import KMeans
 import matplotlib as mpl
-def intra_inter_metadomain_clustering(all_intra_treg_metadomains, all_inter_treg_metadomains, all_intra_tcon_metadomains, all_inter_tcon_metadomains, bw_val_df_all_250kb):
+
+def intra_inter_metadomain_clustering(all_intra_treg_metadomains, all_inter_treg_metadomains, 
+                                      all_intra_tcon_metadomains, all_inter_tcon_metadomains, bw_val_df_all_250kb,
+    k = 3):
     bw_val_df_all_250kb = bw_val_df_all_250kb.copy()
     counts_250kb = pd.DataFrame([all_intra_treg_metadomains.sum(axis=1), all_inter_treg_metadomains.sum(axis=1),
     all_intra_tcon_metadomains.sum(axis=1), all_inter_tcon_metadomains.sum(axis=1)],
                     index = ['Intra Treg', 'Inter Treg', 'Intra Tcon', 'Inter Tcon']
                     ).T
     idx = counts_250kb.index[counts_250kb.sum(axis=1) > 0]
+
     counts_250kb = counts_250kb.loc[idx, ['Intra Treg', 'Intra Tcon', 'Inter Treg', 'Inter Tcon']]
 
     color_df = pd.DataFrame()
@@ -479,10 +484,18 @@ def intra_inter_metadomain_clustering(all_intra_treg_metadomains, all_inter_treg
     df_scaled = scaler.fit_transform(np.log2(counts_250kb+1))
 
 
-    k = 3
     # Fitting KMeans with the specified number of clusters
     kmeans = KMeans(n_clusters=k, random_state=0)
     kmeans.fit(df_scaled)
+    print("# bins:", len(df_scaled))
+    # Reorder clusters from lowest number to highest number:
+    # Get the order of the clusters
+    order = np.argsort(kmeans.cluster_centers_.sum(axis=1))
+    # Get the new labels
+    labels = np.zeros_like(kmeans.labels_)
+    for i, j in enumerate(order):
+        labels[kmeans.labels_ == j] = i
+    kmeans.labels_ = labels
 
     # The labels of the clusters for each point
     labels = kmeans.labels_
@@ -502,8 +515,7 @@ def intra_inter_metadomain_clustering(all_intra_treg_metadomains, all_inter_treg
     f.fig.dpi = 300
     f.ax_row_colors.grid(False)
     f.ax_heatmap.grid(False)
-    f.savefig('./plots/INTER_MEGALOOPS/plots.pdf')    
-
+    return (f, labels, counts_250kb)
 
 
 def add_legend(divfac):
@@ -673,9 +685,16 @@ def make_networkx_plots(self, all_inter_megaloops):
     fig.savefig('./plots/paper/fig3/networkx_plot2.pdf', bbox_inches='tight')
 
 
-def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, keysoi, my_treg_comp, row_colors, row_colors_dict):
+def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, my_treg_comp, row_colors, row_colors_dict,
+                 hue_order = ['matched_A comp.', 'Constitutive', 'Dynamic', 'Repressive'],
+                 palette = ['skyblue'], chip_keys =  ['H3K4me3', 'H3K4me1', 'H3K27ac', 'Smc1a', 'CTCF', 'H3K27me3'],
+                 ):
+    palette = palette + row_colors
     bw_val_df_all_250kb = bw_val_df_all_250kb.copy()
-    v_df = pd.concat([_250kb_hub_annotations, bw_val_df_all_250kb[keysoi]], axis=1)
+    treg_chip_keys = ['Treg ' + x for x in chip_keys]
+    bw_val_df_all_250kb = bw_val_df_all_250kb[treg_chip_keys].apply(zscore, axis=0)
+
+    v_df = pd.concat([_250kb_hub_annotations, bw_val_df_all_250kb], axis=1)
     v_df['Compartment'] = my_treg_comp
 
     v_df.loc[(v_df['Hub'] == -1), 'Hub'] = 'Others'
@@ -683,15 +702,13 @@ def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, keysoi, my_treg_co
     data['Hub'] = data['Hub']
     data['variable'] = data['variable'].str.replace("Treg ", "")
     data = data[data['Hub']!=-1]
-    fig, axs = init_subplots_exact(1, 1, dpi = 200, fgsz=(120*mm, 40*mm), yspace = 1.5, xspace=1.2, sharey=True)
+
+    fig, axs = init_subplots_exact(1, 1, dpi = 200, fgsz=(100*mm, 30*mm), yspace = 1.5, xspace=1.2, sharey=True)
     sns.boxplot(data=data,
                 x='variable', y='value', hue='Hub',
-                order = ['Compartment', 'H3K4me3', 
-                        'H3K4me1', 'H3K27ac',
-                        'Smc1a', 'CTCF', 'H3K27me3'
-                ],
-                hue_order = ['Others', 'matched_A compartment', 'Constitutive', 'Dynamic', 'Repressive'],
-                palette = ['skyblue', 'lightgray'] + row_colors,
+                order =  chip_keys,
+                hue_order = ['Others'] + hue_order,
+                palette = ['lightgray'] + palette,
                 # orient='h', 
                 showfliers=False, zorder=3,)
     plt.legend(bbox_to_anchor=(0, -.3), loc = 'center left', frameon=False, fontsize=6, ncol=13)
@@ -700,7 +717,6 @@ def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, keysoi, my_treg_co
     plt.title('ChIP Enrichment at Clusters')
     axs.set_axisbelow(True)
 
-    row_colors_dict['matched_A compartment'] = 'lightgray'
 
     from scipy.stats import ranksums
     from statsmodels.stats.multitest import multipletests
@@ -715,7 +731,6 @@ def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, keysoi, my_treg_co
     def compute_pvalues_and_annotate(ax, data, x, y, hue, baseline_hue, order, hue_order):
         # Dictionary to store p-values and group coordinates
         p_values = {}
-
         # Iterate over x values and compute p-values
         for i, x_val in enumerate(order):
             baseline_data = data[(data[x] == x_val) & (data[hue] == baseline_hue)][y]
@@ -725,7 +740,6 @@ def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, keysoi, my_treg_co
                     comparison_data = data[(data[x] == x_val) & (data[hue] == hue_val)][y]
                     _, p_value = ranksums(baseline_data, comparison_data)
                     p_values[(i, j)] = p_value
-
         # Apply FDR correction
         p_vals = list(p_values.values())
         _, corrected_p_vals, _, _ = multipletests(p_vals, method='fdr_bh')
@@ -759,9 +773,10 @@ def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, keysoi, my_treg_co
 
 
     # Compute p-values and annotate
-    compute_pvalues_and_annotate(axs, data, 'variable', 'value', 'Hub', 'Others',
-                                ['Compartment', 'H3K4me3', 'H3K4me1', 'H3K27ac', 'Smc1a', 'CTCF', 'H3K27me3'],
-                                ['matched_A compartment', 'Constitutive', 'Dynamic', 'Repressive'])
+
+    compute_pvalues_and_annotate(axs, data, 'variable', 'value', 'Hub', 'matched_A comp.',
+                                ['H3K4me3', 'H3K4me1', 'H3K27ac', 'Smc1a', 'CTCF', 'H3K27me3'],
+                                hue_order)
 
     # Finalize plot
     plt.legend(bbox_to_anchor=(0, -.3), loc='center left', frameon=False, fontsize=6, ncol=2)
@@ -769,6 +784,123 @@ def chip_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, keysoi, my_treg_co
     plt.ylabel("ChIP Enrichment")
     plt.title('ChIP Enrichment at Clusters')
     axs.set_axisbelow(True)
+    return fig
+
+
+
+
+def compartment_boxplot(_250kb_hub_annotations, bw_val_df_all_250kb, my_treg_comp, row_colors, row_colors_dict,
+                 hue_order = ['matched_A comp.', 'Constitutive', 'Dynamic', 'Repressive'],
+                 palette = ['skyblue'], chip_keys =  ['H3K4me3', 'H3K4me1', 'H3K27ac', 'Smc1a', 'CTCF', 'H3K27me3'],
+                 ):
+    palette = palette + row_colors
+    bw_val_df_all_250kb = bw_val_df_all_250kb.copy()
+    treg_chip_keys = ['Treg ' + x for x in chip_keys]
+    bw_val_df_all_250kb = bw_val_df_all_250kb[treg_chip_keys].apply(zscore, axis=0)
+
+    v_df = pd.concat([_250kb_hub_annotations, bw_val_df_all_250kb], axis=1)
+    v_df['Compartment'] = my_treg_comp
+
+    v_df.loc[(v_df['Hub'] == -1), 'Hub'] = 'Others'
+    data = v_df.dropna().melt(id_vars='Hub')
+    data['Hub'] = data['Hub']
+    data['variable'] = data['variable'].str.replace("Treg ", "")
+    data = data[data['Hub']!=-1]
+
+    fig, axs = init_subplots_exact(1, 1, dpi = 200, fgsz=(20*mm, 30*mm), yspace = 1.5, xspace=1.2, sharey=True)
+    sns.boxplot(data=data,
+                x='variable', y='value', hue='Hub',
+                order =  ['Compartment'],
+                hue_order = ['Others'] + hue_order,
+                palette = ['lightgray'] + palette,
+                # orient='h', 
+                showfliers=False, zorder=3,)
+    plt.legend(bbox_to_anchor=(0, -.3), loc = 'center left', frameon=False, fontsize=6, ncol=13)
+    plt.xlim([-.5, .5])
+    axs.set_axisbelow(True)
+
+    from scipy.stats import ranksums
+    from statsmodels.stats.multitest import multipletests
+    from matplotlib.lines import Line2D
+
+    sizemap = {
+        1e-50 : 12,
+        1e-5 : 6,
+        .05 : 2,
+    }
+
+    def compute_pvalues_and_annotate(ax, data, x, y, hue, baseline_hue, order, hue_order):
+        # Dictionary to store p-values and group coordinates
+        p_values = {}
+        # Iterate over x values and compute p-values
+        for i, x_val in enumerate(order):
+            baseline_data = data[(data[x] == x_val) & (data[hue] == baseline_hue)][y]
+
+            for j, hue_val in enumerate(hue_order):
+                if hue_val != baseline_hue:
+                    comparison_data = data[(data[x] == x_val) & (data[hue] == hue_val)][y]
+                    _, p_value = ranksums(baseline_data, comparison_data)
+                    p_values[(i, j)] = p_value
+        # Apply FDR correction
+        p_vals = list(p_values.values())
+        _, corrected_p_vals, _, _ = multipletests(p_vals, method='fdr_bh')
+
+        # Annotate plot with asterisks for significant comparisons
+        for (x_idx, hue_idx), corrected_p_val in zip(p_values.keys(), corrected_p_vals):
+            if corrected_p_val < 0.05:  # Check for significance
+                # Scale asterisk size by -log10 of the p-value
+                for key, val in sizemap.items():
+                    if corrected_p_val < key:
+                        asterisk_size = val
+                        break
+                    
+                # asterisk_size = max(2, np.sqrt(-np.log10(corrected_p_val) * 10)/3)
+                x_coord = x_idx + hue_idx * .18 - 0.26  # Adjust based on number of hue categories
+
+                # Adjust vertical position based on asterisk size
+                y_offset = 9# - (asterisk_size / 30)  # Adjust this factor as needed
+                ax.scatter(x_coord, -4 + 0*y_offset, s=asterisk_size, color = row_colors_dict[hue_order[hue_idx]],
+                        clip_on=False,
+                        )
+                # Annotate with colored asterisk
+
+        # Custom legend for asterisk sizes
+        for c, (key, asterisk_size) in enumerate(sizemap.items()):
+            ax.scatter(4, -6-c, s = asterisk_size, clip_on=False, color='black')
+            ax.text(4.2, -6-c, f'p<{key}', fontsize = 6, va='center')
+
+        # Adjust ylim to make space for asterisks
+        ax.set_ylim(-2.5, top=9)  # Adjust as necessary
+
+
+    # Compute p-values and annotate
+
+    compute_pvalues_and_annotate(axs, data, 'variable', 'value', 'Hub', 'matched_A comp.',
+                                ['Compartment'],
+                                hue_order)
+
+    # Finalize plot
+    plt.legend(bbox_to_anchor=(0, -.3), loc='center left', frameon=False, fontsize=6, ncol=2)
+    plt.xlabel("")
+    plt.ylabel("Compartment Score")
+    plt.title('Compartment Score at Clusters')
+
+    axs.set_axisbelow(True)
+    print(1)
+    plt.ylim([-2, 2])
+
+    return fig
+
+
+
+
+
+
+
+
+
+
+
 
 
 def rpkm_per_hub(hub_annotations, rpkm_df, row_colors_dict, gene_to_ind, ind_to_gene):
@@ -799,6 +931,9 @@ def rpkm_per_hub(hub_annotations, rpkm_df, row_colors_dict, gene_to_ind, ind_to_
     plt.title("Gene expr. in hub")
     plt.xlim([-.2, 4])
     return cluster_valdict
+
+
+
 
 def rpkm_per_hub2(row_colors_dict, col='rTreg'):
     readcounts = {
@@ -1338,28 +1473,27 @@ from aux_functions import nonan_test
 
 
 def hub_atac_coaccessibility():
-    atac_coac_pref = '/Genomics/pritykinlab/susie/metadomain_anchors/cluster_corr/'
-    all_cluster_atac = pd.read_parquet(atac_coac_pref + 'all_treg_interchromosomal_metadomain_cluster_corr.parquet')
-    refined_metadomain_df = pd.read_csv('final_loops/metadomains/refined_metadomains/refined_metadomain_anchors.bed', sep='\t', header=None
-            )
+    atac_coac_pref = './coaccessibility_analysis/'
+    # all_cluster_atac = pd.read_parquet(atac_coac_pref + 'all_treg_interchromosomal_metadomain_cluster_corr.parquet')
+    # refined_metadomain_df = pd.read_csv('final_loops/metaloops/refined_metaloops/refined_metaloop_anchors.bed', sep='\t', header=None)
 
-    tmpdf1_intra = pd.read_csv('for_susie/intrachromosomal_treg_metadomain_bedfile.bed', sep='\t', header=None)
+    tmpdf1_intra = pd.read_csv('intermediate_files/intrachromosomal_treg_metadomain_bedfile.bed', sep='\t', header=None)
     anc1 = tmpdf1_intra[[0, 1, 2]]
     anc2 = tmpdf1_intra[[3, 4, 5]]
     anc2.columns = anc1.columns
-    intra_metadomain_anchors = pd.concat([anc1, anc2], axis=0).value_counts()
+    # intra_metadomain_anchors = pd.concat([anc1, anc2], axis=0).value_counts()
 
-    tmpdf1_inter = pd.read_csv('for_susie/all_treg_interchromosomal_metadomain_bedfile.bed', sep='\t', header=None)
+    tmpdf1_inter = pd.read_csv('intermediate_files/all_treg_interchromosomal_metadomain_bedfile.bed', sep='\t', header=None)
     anc1 = tmpdf1_inter[[0, 1, 2]]
     anc2 = tmpdf1_inter[[3, 4, 5]]
     anc2.columns = anc1.columns
-    inter_metadomain_anchors = pd.concat([anc1, anc2], axis=0).value_counts()
+    # inter_metadomain_anchors = pd.concat([anc1, anc2], axis=0).value_counts()
 
-    intra_metadomain_anchors_bedtool = pbt.BedTool.from_dataframe(intra_metadomain_anchors.reset_index())
-    inter_metadomain_anchors_bedtool = pbt.BedTool.from_dataframe(inter_metadomain_anchors.reset_index())
+    # intra_metadomain_anchors_bedtool = pbt.BedTool.from_dataframe(intra_metadomain_anchors.reset_index())
+    # inter_metadomain_anchors_bedtool = pbt.BedTool.from_dataframe(inter_metadomain_anchors.reset_index())
 
-    _5kb_anchors_bedtool = pbt.BedTool.from_dataframe(refined_metadomain_df.value_counts().reset_index())
-    all_50kb_metadomain_anchors = intra_metadomain_anchors_bedtool.cat(inter_metadomain_anchors_bedtool)
+    # _5kb_anchors_bedtool = pbt.BedTool.from_dataframe(refined_metadomain_df.value_counts().reset_index())
+    # all_50kb_metadomain_anchors = intra_metadomain_anchors_bedtool.cat(inter_metadomain_anchors_bedtool)
 
     all_5kb_bins_atac_coac = pd.read_parquet(atac_coac_pref + 'all_5kb_anchors_in_50kb_Treg_metadomains_atac_corr.parquet')
 
@@ -1385,23 +1519,23 @@ def hub_atac_coaccessibility():
         cluster_annotation = [cluster_annotation_dict[x] for x in coldata]
         return cluster_annotation
 
-    def get_anchor_metadomain_annotation(coldata):
-        rows = []
-        og_vals = []
-        for x in coldata.unique():
-            chrom, s = x.split(':')
-            rows.append([chrom, int(s), int(s) + 5000])
-            og_vals.append(x)
-        col_rows = pbt.BedTool(rows)
-        col_rows_with_annot = col_rows.intersect(add_chr_to_bedtool(pbt.BedTool('for_susie/250kb_anchors_with_cluster_label.bed')), wao=True)
-        cluster_annotation = get_col(col_rows_with_annot, -2)
-        cluster_annotation = cluster_annotation.astype('<U16')
-        cluster_annotation[cluster_annotation == '.'] = '-1'
-        cluster_annotation = cluster_annotation.astype(int)
-        cluster_annotation_dict = dict(zip(og_vals, cluster_annotation))
-        print("Done making dict!")
-        cluster_annotation = [cluster_annotation_dict[x] for x in coldata]
-        return cluster_annotation
+    # def get_anchor_metadomain_annotation(coldata):
+    #     rows = []
+    #     og_vals = []
+    #     for x in coldata.unique():
+    #         chrom, s = x.split(':')
+    #         rows.append([chrom, int(s), int(s) + 5000])
+    #         og_vals.append(x)
+    #     col_rows = pbt.BedTool(rows)
+    #     col_rows_with_annot = col_rows.intersect(add_chr_to_bedtool(pbt.BedTool('for_susie/250kb_anchors_with_cluster_label.bed')), wao=True)
+    #     cluster_annotation = get_col(col_rows_with_annot, -2)
+    #     cluster_annotation = cluster_annotation.astype('<U16')
+    #     cluster_annotation[cluster_annotation == '.'] = '-1'
+    #     cluster_annotation = cluster_annotation.astype(int)
+    #     cluster_annotation_dict = dict(zip(og_vals, cluster_annotation))
+    #     print("Done making dict!")
+    #     cluster_annotation = [cluster_annotation_dict[x] for x in coldata]
+    #     return cluster_annotation
 
     def susie_anchor_to_grange(susie_anchor):
         chrom, s = susie_anchor.split(":")
@@ -1484,13 +1618,51 @@ def metaloop_coaccessibility():
     fig.savefig('./plots/paper/fig6/atac_metaloop_coacc.pdf', bbox_inches='tight')    
 
 
+def make_h3k27ac_stat5_motif_plot(h3k27ac_motif_df, motif='Stat5a'):
+    all_h3k27ac = add_chr_to_bedtool(pbt.BedTool('peaks/differential/all_threshold_27ac.csv')).to_dataframe()
+    all_h3k27ac['score'] = -all_h3k27ac['score']
+    all_h3k27ac = all_h3k27ac[(all_h3k27ac['name'] < 1000) & (all_h3k27ac['name'] > 10)]
+    all_h3k27ac.index = bedtool_to_index(pbt.BedTool.from_dataframe(all_h3k27ac))
 
-def make_h3k27ac_stat5_motif_plot():
+    outpref = '/Genomics/argo/users/gdolsten/pritlab/jupys/tregs/rudensky_scrna/prelim-analysis/call_motifs/bedfiles/h3k27ac_treg.csv'
+    df = add_chr_to_bedtool(pbt.BedTool('peaks/differential/all_threshold_27ac.csv')).to_dataframe().iloc[:, :3]
+    pbt.BedTool.from_dataframe(df).saveas(outpref)
+
+    fig, axs = init_subplots_exact(1, 1, fgsz=(30*mm, 30*mm), dpi = 200)
+
+    v_dict = {}
+
+    h3k27ac_motif_df = h3k27ac_motif_df.loc[all_h3k27ac.index]
+    n_motifs = h3k27ac_motif_df[motif].clip(0, 2)
+
+    kwargs = [dict(color='gray', linestyle='--'), dict(color='salmon'), dict(color='red'), dict(color='maroon')]
+    for c, u in enumerate(np.unique(n_motifs)):
+        idx = (n_motifs == u).values
+        v = all_h3k27ac.loc[idx, 'score']
+        if u == 0:
+            sns.ecdfplot(v, **kwargs[c], label=f'{u} Stat5 Motifs')
+        else:
+            p = format_pvalue(scipy.stats.ranksums(v, v_dict[0])[1])
+            sns.ecdfplot(v, **kwargs[c], label=f'{u} Stat5 Motifs;\np={p}')
+        v_dict[u] = v
+        
+    plt.xlim([-2, 2])
+    plt.legend(loc='upper left', frameon=False)
+    add_xaxis_labels("Tcon", "Treg", axs, fontsize=6)
+    plt.xlabel("H3K27ac LFC")
+    plt.title("H3K27ac LFC at Stat5 sites")
+    plt.legend(bbox_to_anchor=(0, -.25), loc='upper left', ncol=3)
+    plt.ylabel("CDF")
+    fig.savefig('./plots/paper/fig7/stat5_motifs.pdf', bbox_inches='tight')    
+
+def make_h3k27ac_stat5_motif_plot_1(motif='Stat5a'):
     chromvar_pref = '/Genomics/argo/users/gdolsten/pritlab/jupys/tregs/rudensky_scrna/prelim-analysis/call_motifs/output/counts/h3k27ac_treg_Mus_musculus//h3k27ac_treg_p=1e-05.csv'
     chromvar_motifs = pd.read_csv(chromvar_pref, index_col = 0)
     all_h3k27ac = add_chr_to_bedtool(pbt.BedTool('peaks/differential/all_threshold_27ac.csv')).to_dataframe()
     all_h3k27ac['score'] = -all_h3k27ac['score']
-    all_h3k27ac = all_h3k27ac[(all_h3k27ac['name'] < 400) | (all_h3k27ac['name'] > 10)]
+    pick_idx = (all_h3k27ac['name'] < 1000) & (all_h3k27ac['name'] > 10)
+    all_h3k27ac = all_h3k27ac[pick_idx]
+    chromvar_motifs = chromvar_motifs.loc[pick_idx.values]
     
     outpref = '/Genomics/argo/users/gdolsten/pritlab/jupys/tregs/rudensky_scrna/prelim-analysis/call_motifs/bedfiles/h3k27ac_treg.csv'
     df = add_chr_to_bedtool(pbt.BedTool('peaks/differential/all_threshold_27ac.csv')).to_dataframe().iloc[:, :3]
@@ -1499,7 +1671,7 @@ def make_h3k27ac_stat5_motif_plot():
     fig, axs = init_subplots_exact(1, 1, fgsz=(30*mm, 30*mm), dpi = 200)
     
     v_dict = {}
-    n_motifs = chromvar_motifs['Stat5a'].clip(0, 2)
+    n_motifs = chromvar_motifs[motif].clip(0, 2)
     
     kwargs = [dict(color='gray', linestyle='--'), dict(color='salmon'), dict(color='red'), dict(color='maroon')]
     for c, u in enumerate(np.unique(n_motifs)):
@@ -1517,7 +1689,8 @@ def make_h3k27ac_stat5_motif_plot():
     add_xaxis_labels("Tcon", "Treg", axs, fontsize=6)
     plt.xlabel("H3K27ac LFC")
     plt.title("H3K27ac LFC at Stat5 sites")
-    fig.savefig('./plots/FINAL_CHIP_PLOTS/stat5_motifs.pdf', bbox_inches='tight')    
+    plt.legend(bbox_to_anchor=(0, -.25), loc='upper left', ncol=3)
+    fig.savefig('./plots/paper/fig7/stat5_motifs.pdf', bbox_inches='tight')    
 
 
 def generate_all_bw_values_chrom(bw, chromsizes, parsed_chroms):
@@ -1619,6 +1792,7 @@ def chip_hub_correlation_plots(self, bw_val_df_all_250kb, stat_df, columns_to_na
         'CTCF' : np.log2(np.ravel(bw_val_df_all_250kb['Treg CTCF'] / bw_val_df_all_250kb['CD4 CTCF'])),
         'CREB' : np.log2(np.ravel(bw_val_df_all_250kb['Treg CREB'] / bw_val_df_all_250kb['Tconv CREB'])),
         'Satb1' : np.log2(np.ravel(bw_val_df_all_250kb['Treg Satb1'] / bw_val_df_all_250kb['Tconv Satb1'])),
+        'Foxp3' : np.log2(np.ravel(bw_val_df_all_250kb['Treg Foxp3'])),
         'H3K4me1' : np.log2(np.ravel(bw_val_df_all_250kb['Treg H3K4me1'] / bw_val_df_all_250kb['Tcon H3K4me1'])),
         'H3K4me3' : np.log2(np.ravel(bw_val_df_all_250kb['Treg H3K4me3'] / bw_val_df_all_250kb['Tcon H3K4me3'])),
         'H3K27me3' : np.log2(np.ravel(bw_val_df_all_250kb['Treg H3K27me3'] / bw_val_df_all_250kb['Tcon H3K27me3'])),
@@ -1642,9 +1816,9 @@ def chip_hub_correlation_plots(self, bw_val_df_all_250kb, stat_df, columns_to_na
         r_df.append(rs)
     r_df = pd.DataFrame(r_df, index=delta_stat.keys())
     r_df.columns = [columns_to_names[x] for x in inds]
-
+    print(2)
     gc = sns.clustermap(r_df, col_cluster=False, row_cluster=False, 
-                        figsize=(60*mm, 60*mm), col_colors=row_colors,
+                        figsize=(58*mm, 58*mm), col_colors=row_colors,
                         annot=True, cmap='coolwarm', fmt='.2f', 
                         cbar_pos=(.9, .8, .05, .1), vmin=-.7, vmax=.7,
                         annot_kws = {'fontsize' : 4}, zorder=3,
@@ -1654,7 +1828,7 @@ def chip_hub_correlation_plots(self, bw_val_df_all_250kb, stat_df, columns_to_na
     col_colors_pos = gc.ax_col_colors.get_position().bounds
     new_height = 0.05  # Adjust this value to your liking
     gc.ax_col_colors.set_position([col_colors_pos[0], col_colors_pos[1], col_colors_pos[2], new_height])
-    gc.ax_heatmap.set_title('Pearson R: ChIP LFC vs. \nHi-C LFC w/ cluster', y = 1.1)
+    gc.ax_heatmap.set_title('ChIP - Hub\nCorrelation (LFC)', y = 1.1)
 
         
     gc.ax_heatmap.set_xlabel("Cluster")
