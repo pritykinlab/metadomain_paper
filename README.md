@@ -30,7 +30,7 @@ This repository is organized to provide easy access to the resources used in gen
 
 ### Large Files
 
-- Large files, including mcool files and ChIP-seq data, are available on Google Drive: https://drive.google.com/drive/folders/1bsxRWz-5rAUNe-3OctKurxgIj7hCoTOs?usp=drive_link
+- Large files, including mcool files and ChIP-seq data, are available on Google Drive: https://drive.google.com/drive/folders/1bsxRWz-5rAUNe-3OctKurxgIj7hCoTOs?usp=sharing
 
 
 ---
